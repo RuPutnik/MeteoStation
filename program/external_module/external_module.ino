@@ -199,7 +199,12 @@ void fillServicePacketESD(float* packet, short numErrDetector){
 
 void fillServicePacketRDM(float* packet, bool* detectorMap){
   packet[3]=SERVICE_MSG_TYPE::REPORT_DETECTOR_MAP;
-  ////////////packet[4]=numErrDetector;
+  uint32_t bitMapDetector=0;
+
+  for(int i=0;i<COUNT_DETECTOR;i++){
+    (bitMapDetector|=detectorMap[i])<<(i+2);
+  }
+  packet[4]=bitMapDetector;
 
   fillHeaderAndTailServicePacket(packet);
 }
