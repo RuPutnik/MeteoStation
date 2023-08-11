@@ -1,0 +1,20 @@
+﻿NRF24L01:
+CE - D9
+CS(N) - D10
+MO - D11
+MI - D12
+SCK - D13
+
+Microphone:
+A0 - A1
+D0 - x
+
+MQ-135:
+A0 - A0
+D0 - x
+
+AHT10:
+SDA - A4
+SCL - A5
+
+Светодиод: D2

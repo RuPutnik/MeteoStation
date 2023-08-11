@@ -1,0 +1,27 @@
+﻿NRF24L01:
+CE - D9
+CS(N) - D10
+MO - D11
+MI - D12
+SCK - D13
+
+Датчик дождя MH:
+A0 - A0
+D0 - x
+
+AHT10:
+SDA - A4
+SCL - A5
+
+BMP280
+SDA - A4
+SCL - A5 
+
+Датчик ультрафиолета GUVA-S12SD:
+SIG - A2
+
+TEMT6000:
+OUT - A1
+
+Светодиод:
+OUT - D2
