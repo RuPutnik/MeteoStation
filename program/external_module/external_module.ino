@@ -19,14 +19,15 @@
 #define SERIAL_SPEED               9600
 #define RADIO_CHANNEL_NUMBER       8
 #define DATA_SEGMENT_LENGTH        8
+#define DATA_SEGMENT_LENGTH_B      DATA_SEGMENT_LENGTH*sizeof(float)  //32
 #define COUNT_SEGMENTS_IN_PACKET   3
 
 #define RAIN_DETECT_PORT           A0
 #define TEMT6000_PORT              A1
 #define GUAVA_PORT                 A2
+#define LED_PORT                   2
 #define RADIO_CE_PORT              9
 #define RADIO_CSN_PORT             10
-#define LED_PORT                   2
 
 Adafruit_AHT10 ahtDetector;
 Adafruit_BMP280 bmpDetector;
@@ -39,7 +40,7 @@ float dataPacket[COUNT_SEGMENTS_IN_PACKET][DATA_SEGMENT_LENGTH];
 float servicePacket[DATA_SEGMENT_LENGTH];
 float actionPacket[DATA_SEGMENT_LENGTH];
 bool detectorMap[COUNT_DETECTOR];
-uint64_t numberPacket;
+float numberPacket;
 unsigned long prevTime=0;
 
 enum TYPE_PACKET{
@@ -101,7 +102,7 @@ void loop() {
  
   if(radio.available()){ 
     //пытаемся читать входящие данные                              
-    radio.read(&actionPacket, sizeof(actionPacket));
+    radio.read(&actionPacket, DATA_SEGMENT_LENGTH_B);
     //анализируем входные данные
     incomingPacketAnalysis(actionPacket);  
   }  
@@ -153,11 +154,13 @@ void incomingPacketAnalysis(float* packet){
 }
 
 void sendPacketData(float** packet){
-
+  radio.write(packet[0], DATA_SEGMENT_LENGTH_B);
+  radio.write(packet[1], DATA_SEGMENT_LENGTH_B);
+  radio.write(packet[2], DATA_SEGMENT_LENGTH_B);
 }
 
 void sendPacketService(float* packet){
-
+  radio.write(packet, DATA_SEGMENT_LENGTH_B);
 }
 
 //Отправка квитанции о получении пакета управления (Отсылается перед выполнением какого-либо требуемого действия)
@@ -279,22 +282,22 @@ void fillDataPacket(float** dataArray){
   memmove(dataArray[2], dataArray[0], 3*sizeof(float));
 
   if(detectorMap[0])
-  dataArray[0][3]=getTemperatureValue();
+  dataArray[0][3]=-1;//getTemperatureValue();
 
   if(detectorMap[1])
-  dataArray[0][4]=getHumidityValue();
+  dataArray[0][4]=-2;//getHumidityValue();
 
   if(detectorMap[2])
-  dataArray[1][3]=getRainValue();
+  dataArray[1][3]=-3;//getRainValue();
 
   if(detectorMap[3])
-  dataArray[1][4]=getPressureValue();
+  dataArray[1][4]=-4;//getPressureValue();
 
   if(detectorMap[4])
-  dataArray[2][3]=getSolarValue();
+  dataArray[2][3]=-5;//getSolarValue();
 
   if(detectorMap[5])
-  dataArray[2][4]=getUVValue();
+  dataArray[2][4]=-6;//getUVValue();
 
   dataArray[0][5]=numberPacket;
   dataArray[1][5]=numberPacket;
@@ -304,10 +307,17 @@ void fillDataPacket(float** dataArray){
   dataArray[1][6]=1;
   dataArray[2][6]=2;
 
-  dataArray[0][7]=calcCheckSum(dataArray[0], DATA_SEGMENT_LENGTH);
-  dataArray[1][7]=calcCheckSum(dataArray[1], DATA_SEGMENT_LENGTH);
-  dataArray[2][7]=calcCheckSum(dataArray[2], DATA_SEGMENT_LENGTH);
-  numberPacket++;
+  float resCkSum=calcCheckSum(dataArray[0], DATA_SEGMENT_LENGTH)+calcCheckSum(dataArray[1], DATA_SEGMENT_LENGTH)+calcCheckSum(dataArray[2], DATA_SEGMENT_LENGTH);
+
+  dataArray[0][7]=resCkSum;
+  dataArray[1][7]=resCkSum;
+  dataArray[2][7]=resCkSum;
+  
+  if(numberPacket<1000000000){
+    numberPacket++;
+  }else{
+    numberPacket=0;
+  }
 }
 
 //Функции инициализации и деиницаилизации
