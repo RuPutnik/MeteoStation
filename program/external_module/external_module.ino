@@ -351,6 +351,8 @@ void startAHT10(){
     delay(10);
     count--;
     if(count<0){
+      fillServicePacketESD(servicePacket, 1);
+      sendPacketService(servicePacket);
       //Послать сообщение об ошибке
       return false;
     }
@@ -364,6 +366,8 @@ void startBMP280(){
     delay(10);
     count--;
     if(count<0){
+      fillServicePacketESD(servicePacket, 0);
+      sendPacketService(servicePacket);
       //Послать сообщение об ошибке
       return false;
     }
