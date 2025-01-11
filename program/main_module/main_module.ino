@@ -14,7 +14,7 @@
 #define DATA_SEGMENT_LENGTH_B      DATA_SEGMENT_LENGTH*sizeof(float)  //32
 #define COUNT_SEGMENTS_IN_PACKET   3
 RF24 radio(9, 10);  // указать номера пинов, куда подключаются CE и CSN
-
+//Здесь сырые данные должны переводиться в адекватные единицы
 float tmdData[SIZE_TMD_DATA];
 char dataParam[10];
 void setup(){                        

@@ -12,10 +12,10 @@ float normalize(int value){
   return value/1024.0;  
 }
 
-int calcCheckSum(float* data, int sizeData){
-  int sum=0;
+float calcCheckSum(float* data, int sizeData){
+  float sum=0;
   for(int i=0;i<sizeData-1;i++){
-    sum+=(int)data[i];
+    sum += data[i]; //Можно считать с дробями т.к. на обоих модулях алгоритм подсчета одинаков и числа должны совпасть
   }
   return sum;   
 }
@@ -35,6 +35,7 @@ void debugServicePacket(float* packet){
   for(int j = 0; j < DATA_SEGMENT_LENGTH; j++){
       Serial.print(packet[j] + (String)" | ");
   }
+  Serial.print("\n");
 }
 
 void debugActionPacket(float* packet){
@@ -42,6 +43,7 @@ void debugActionPacket(float* packet){
   for(int j = 0; j < DATA_SEGMENT_LENGTH; j++){
       Serial.print(packet[j] + (String)" | ");
   }
+  Serial.print("\n");
 }
 
 void fillIncomingActionPacket(float* incomingPacket, COMMANDS_TYPE command, float paramValue){

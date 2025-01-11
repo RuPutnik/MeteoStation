@@ -37,7 +37,7 @@ RF24 radio(RADIO_CE_PORT, RADIO_CSN_PORT);
 sensors_event_t humidityEvent, tempEvent;
 
 int timeIntervalMsec;
-float dataPacket[COUNT_SEGMENTS_IN_PACKET][DATA_SEGMENT_LENGTH];
+float** dataPacket = nullptr;
 float servicePacket[DATA_SEGMENT_LENGTH];
 float actionPacket[DATA_SEGMENT_LENGTH];
 bool detectorMap[COUNT_DETECTOR];
@@ -57,7 +57,7 @@ enum COMMANDS_TYPE{
   RESUME_SEND_DATA     = 5,
   GET_DETECTOR_MAP     = 6,
   GET_TIME_INTERVAL    = 7,
-  GET_LIFE_TIME        = 8,
+  GET_LIFE_TIME        = 8, //в миллисек.
   HEARTBEAT            = 9
 };
 
@@ -79,11 +79,20 @@ void setup() {
   timeIntervalMsec=DEFAULT_TIME_INTERVAL_MSEC;
   resetDetectorMap(detectorMap);
 
+  if(!dataPacket){
+    dataPacket = new float*[COUNT_SEGMENTS_IN_PACKET];
+    for(int i = 0; i < COUNT_SEGMENTS_IN_PACKET; i++){
+      dataPacket[i] = new float[DATA_SEGMENT_LENGTH];
+    }
+  }
+
   //Запускаем, настраиваем все датчики
   turnOnLED();
+  startRadio();
+
   startAHT10();
   startBMP280();
-  startRadio();
+  
   delay(START_DELAY_MSEC);
   turnOffLED();
 
@@ -95,15 +104,22 @@ void setup() {
 
 void loop() {
   if((millis()-prevTime)>=timeIntervalMsec){
+    Serial.println("=== FORM DATA PACKET ===");
     //формируем массив данных
     fillDataPacket((float**)dataPacket);
     //отправляем массив метеоданных
+
+    Serial.println("=== SEND DATA PACKET ===");
+    debugDataPacket((float**)dataPacket);
     sendPacketData((float**)dataPacket);
 
     prevTime=millis();
   }
+
+   Serial.println("=== READ PACKET ===");
  
-  if(radio.available()){ 
+  if(radio.available()){
+    Serial.println("=== PACKET INCOMING ===");
     //пытаемся читать входящие данные                              
     radio.read(&actionPacket, DATA_SEGMENT_LENGTH_B);
     //анализируем входные данные
@@ -111,16 +127,20 @@ void loop() {
   }  
   
   delay(WORK_RADIO_DELAY_MSEC); //Обязательная задержка
+  Serial.println("=== END ITERATION ===");
 }
 
 void analyzeIncomingPacket(float* packet){
+  Serial.println("=== START ANALYZE INCOMING ===");
+  debugActionPacket(packet);
+
   if(packet[0]!=MODULE_ID) return; //Проверка, что данный пакет предназначен текущему модулю
   if(packet[1]!=CENTRAL_MODULE_ID) return; //Проверка, что данный пакет поступил от главного модуля
   if(packet[2]!=TYPE_PACKET::CONTROL) return; //Проверка, что данный пакет имеет тип 'управляющий'
-  if(((int)packet[7])!=calcCheckSum(packet, DATA_SEGMENT_LENGTH)) return; //Проверка на контрольную сумму пакета
+  if(packet[7]!=calcCheckSum(packet, DATA_SEGMENT_LENGTH)) return; //Проверка на контрольную сумму пакета
 
   sendReceipt(); //Посылаем главному модулю квитанцию, что получили его команду
-
+  Serial.println((String)"PACKET ACTION TYPE : " + (int)packet[3]);
   switch((int)packet[3]){
     case COMMANDS_TYPE::RESTART_ALL:
       restartAll();
@@ -129,13 +149,13 @@ void analyzeIncomingPacket(float* packet){
       stopRadio();
     break;
     case COMMANDS_TYPE::CHANGE_SEND_INTERVAL:
-      changeSendInterval((int)packet[4]);
+      changeSendInterval((int)packet[4]); //Параметр можно менять на одно из фиксированного набора значений по кругу 
     break;
     case COMMANDS_TYPE::STOP_SEND_DATA:
-      stopSendData(static_cast<int>(packet[4]));
+      stopSendData(static_cast<int>(packet[4])); //Возможно, не получится реализовать. Сложно вводить числа на блоке управления
     break;
     case COMMANDS_TYPE::RESUME_SEND_DATA:
-      resumeSendData((int)packet[4]);
+      resumeSendData((int)packet[4]); //Возможно, не получится реализовать. Сложно вводить числа на блоке управления
     break;
     case COMMANDS_TYPE::GET_DETECTOR_MAP:
       returnDetectorMap();
@@ -164,6 +184,7 @@ void sendPacketData(float** packet){
 }
 
 void sendPacketService(float* packet){
+  debugServicePacket(packet);
   radio.write(packet, DATA_SEGMENT_LENGTH_B);
 }
 
@@ -209,8 +230,8 @@ void fillServicePacketRDM(float* packet, bool* detectorMap){
   uint32_t bitMapDetector=0;
 
   for(int i=0; i<COUNT_DETECTOR; i++){
-    //Заполняем побитово 4-байтовое целое беззнаковое, оставляя 3 старших байтах и 2 младших бита младшего байта неиспользованными
-    (bitMapDetector|=static_cast<int>(detectorMap[i]))<<=(i+2);
+    //Заполняем побитово 4-байтовое целое беззнаковое, оставляя 3 старших байтах и 2 старших бита младшего байта неиспользованными
+    bitMapDetector |= (static_cast<uint32_t>(detectorMap[i]) << i);
   }
   packet[4]=bitMapDetector;
 
@@ -282,9 +303,10 @@ void fillDataPacket(float** dataArray){
   dataArray[0][0]=CENTRAL_MODULE_ID;
   dataArray[0][1]=MODULE_ID;
   dataArray[0][2]=TYPE_PACKET::DATA;
-  
+
   memmove(dataArray[1], dataArray[0], 3*sizeof(float)); //Копируем данные в оставшиеся сегменты пакета
   memmove(dataArray[2], dataArray[0], 3*sizeof(float));
+
   dataArray[0][3] = -1;
   dataArray[0][4] = -1;
   dataArray[1][3] = -1;
@@ -292,44 +314,43 @@ void fillDataPacket(float** dataArray){
   dataArray[2][3] = -1;
   dataArray[2][4] = -1;
 
+   if(detectorMap[0]){
+     dataArray[0][3] = getTemperatureValue();
+   }
 
-  if(detectorMap[0]){
-    dataArray[0][3] = getTemperatureValue();
-  }
+   if(detectorMap[1]){
+     dataArray[0][4] = getHumidityValue();
+   }
 
-  if(detectorMap[1]){
-    dataArray[0][4] = getHumidityValue();
-  }
+   if(detectorMap[2]){
+     dataArray[1][3] = getRainValue();
+   }
 
-  if(detectorMap[2]){
-    dataArray[1][3] = getRainValue();
-  }
+   if(detectorMap[3]){
+     dataArray[1][4] = getPressureValue();
+   }
 
-  if(detectorMap[3]){
-    dataArray[1][4] = getPressureValue();
-  }
+   if(detectorMap[4]){
+     dataArray[2][3] = getSolarValue();
+   }
 
-  if(detectorMap[4]){
-    dataArray[2][3] = getSolarValue();
-  }
+   if(detectorMap[5]){
+     dataArray[2][4] = getUVValue();
+   }
 
-  if(detectorMap[5]){
-    dataArray[2][4] = getUVValue();
-  }
+   dataArray[0][5]=numberPacket;
+   dataArray[1][5]=numberPacket;
+   dataArray[2][5]=numberPacket;
 
-  dataArray[0][5]=numberPacket;
-  dataArray[1][5]=numberPacket;
-  dataArray[2][5]=numberPacket;
+   dataArray[0][6]=0;
+   dataArray[1][6]=1;
+   dataArray[2][6]=2;
 
-  dataArray[0][6]=0;
-  dataArray[1][6]=1;
-  dataArray[2][6]=2;
+   float resCkSum=calcCheckSum(dataArray[0], DATA_SEGMENT_LENGTH) + calcCheckSum(dataArray[1], DATA_SEGMENT_LENGTH) + calcCheckSum(dataArray[2], DATA_SEGMENT_LENGTH);
 
-  float resCkSum=calcCheckSum(dataArray[0], DATA_SEGMENT_LENGTH)+calcCheckSum(dataArray[1], DATA_SEGMENT_LENGTH)+calcCheckSum(dataArray[2], DATA_SEGMENT_LENGTH);
-
-  dataArray[0][7]=resCkSum;
-  dataArray[1][7]=resCkSum;
-  dataArray[2][7]=resCkSum;
+   dataArray[0][7]=resCkSum;
+   dataArray[1][7]=resCkSum;
+   dataArray[2][7]=resCkSum;
   
   if(numberPacket<1000000000){
     numberPacket++;
