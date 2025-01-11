@@ -14,13 +14,14 @@
 #define PIPE_READ_ADDRESS          0xF0F0F0F0E1LL
 #define PIPE_WRITE_ADDRESS         0xF0F0F0F0E2LL
 #define DEFAULT_TIME_INTERVAL_MSEC 10000
-#define CENTRAL_MODULE_ID          1
-#define MODULE_ID                  2
 #define SERIAL_SPEED               9600
 #define RADIO_CHANNEL_NUMBER       8
 #define DATA_SEGMENT_LENGTH        8
-#define DATA_SEGMENT_LENGTH_B      DATA_SEGMENT_LENGTH*sizeof(float)  //32
+#define DATA_SEGMENT_LENGTH_B      (DATA_SEGMENT_LENGTH * sizeof(float))  //32
 #define COUNT_SEGMENTS_IN_PACKET   3
+
+#define CENTRAL_MODULE_ID          0
+#define MODULE_ID                  2
 
 #define RAIN_DETECT_PORT           A0
 #define TEMT6000_PORT              A1
@@ -78,6 +79,7 @@ void setup() {
   timeIntervalMsec=DEFAULT_TIME_INTERVAL_MSEC;
   resetDetectorMap(detectorMap);
 
+  //Запускаем, настраиваем все датчики
   turnOnLED();
   startAHT10();
   startBMP280();
@@ -88,6 +90,7 @@ void setup() {
   //Сообщаем главному модулю, что мы успешно запустились
   fillServicePacketSMS(servicePacket);
   sendPacketService(servicePacket);
+  Serial.println("=== SUCCESS SETUP ===");
 }
 
 void loop() {
@@ -104,13 +107,13 @@ void loop() {
     //пытаемся читать входящие данные                              
     radio.read(&actionPacket, DATA_SEGMENT_LENGTH_B);
     //анализируем входные данные
-    incomingPacketAnalysis(actionPacket);  
+    analyzeIncomingPacket(actionPacket);  
   }  
   
   delay(WORK_RADIO_DELAY_MSEC); //Обязательная задержка
 }
 
-void incomingPacketAnalysis(float* packet){
+void analyzeIncomingPacket(float* packet){
   if(packet[0]!=MODULE_ID) return; //Проверка, что данный пакет предназначен текущему модулю
   if(packet[1]!=CENTRAL_MODULE_ID) return; //Проверка, что данный пакет поступил от главного модуля
   if(packet[2]!=TYPE_PACKET::CONTROL) return; //Проверка, что данный пакет имеет тип 'управляющий'
@@ -129,7 +132,7 @@ void incomingPacketAnalysis(float* packet){
       changeSendInterval((int)packet[4]);
     break;
     case COMMANDS_TYPE::STOP_SEND_DATA:
-      stopSendData((int)packet[4]);
+      stopSendData(static_cast<int>(packet[4]));
     break;
     case COMMANDS_TYPE::RESUME_SEND_DATA:
       resumeSendData((int)packet[4]);
@@ -147,6 +150,7 @@ void incomingPacketAnalysis(float* packet){
       heartbeatReaction();
     break;
     default:
+	  //Если тип команды не распознан, посылаем об этом сообщение главному модулю
       fillServicePacketGEC(servicePacket, actionPacket);
       sendPacketService(servicePacket);
     break;
@@ -204,8 +208,9 @@ void fillServicePacketRDM(float* packet, bool* detectorMap){
   packet[3]=SERVICE_MSG_TYPE::REPORT_DETECTOR_MAP;
   uint32_t bitMapDetector=0;
 
-  for(int i=0;i<COUNT_DETECTOR;i++){
-    (bitMapDetector|=detectorMap[i])<<(i+2);
+  for(int i=0; i<COUNT_DETECTOR; i++){
+    //Заполняем побитово 4-байтовое целое беззнаковое, оставляя 3 старших байтах и 2 младших бита младшего байта неиспользованными
+    (bitMapDetector|=static_cast<int>(detectorMap[i]))<<=(i+2);
   }
   packet[4]=bitMapDetector;
 
@@ -278,26 +283,39 @@ void fillDataPacket(float** dataArray){
   dataArray[0][1]=MODULE_ID;
   dataArray[0][2]=TYPE_PACKET::DATA;
   
-  memmove(dataArray[1], dataArray[0], 3*sizeof(float));
+  memmove(dataArray[1], dataArray[0], 3*sizeof(float)); //Копируем данные в оставшиеся сегменты пакета
   memmove(dataArray[2], dataArray[0], 3*sizeof(float));
+  dataArray[0][3] = -1;
+  dataArray[0][4] = -1;
+  dataArray[1][3] = -1;
+  dataArray[1][4] = -1;
+  dataArray[2][3] = -1;
+  dataArray[2][4] = -1;
 
-  if(detectorMap[0])
-  dataArray[0][3]=-1;//getTemperatureValue();
 
-  if(detectorMap[1])
-  dataArray[0][4]=-2;//getHumidityValue();
+  if(detectorMap[0]){
+    dataArray[0][3] = getTemperatureValue();
+  }
 
-  if(detectorMap[2])
-  dataArray[1][3]=-3;//getRainValue();
+  if(detectorMap[1]){
+    dataArray[0][4] = getHumidityValue();
+  }
 
-  if(detectorMap[3])
-  dataArray[1][4]=-4;//getPressureValue();
+  if(detectorMap[2]){
+    dataArray[1][3] = getRainValue();
+  }
 
-  if(detectorMap[4])
-  dataArray[2][3]=-5;//getSolarValue();
+  if(detectorMap[3]){
+    dataArray[1][4] = getPressureValue();
+  }
 
-  if(detectorMap[5])
-  dataArray[2][4]=-6;//getUVValue();
+  if(detectorMap[4]){
+    dataArray[2][3] = getSolarValue();
+  }
+
+  if(detectorMap[5]){
+    dataArray[2][4] = getUVValue();
+  }
 
   dataArray[0][5]=numberPacket;
   dataArray[1][5]=numberPacket;
@@ -336,8 +354,8 @@ void startRadio(){
   radio.setDataRate(RF24_1MBPS);
   radio.setPALevel(RF24_PA_LOW);
   radio.openReadingPipe(1,PIPE_READ_ADDRESS);
-	radio.openWritingPipe(PIPE_WRITE_ADDRESS); //Открываем трубу для отправки
-	radio.startListening();
+  radio.openWritingPipe(PIPE_WRITE_ADDRESS); //Открываем трубу для отправки
+  radio.startListening();
 }
 
 void stopRadio(){
@@ -353,11 +371,12 @@ void startAHT10(){
     if(count<0){
       fillServicePacketESD(servicePacket, 1);
       sendPacketService(servicePacket);
+      Serial.println("ERROR AHT10");
+      return;
       //Послать сообщение об ошибке
-      return false;
     }
   }
-  return true;
+  Serial.println("SUCCESS AHT10");
 }
 
 void startBMP280(){
@@ -368,15 +387,15 @@ void startBMP280(){
     if(count<0){
       fillServicePacketESD(servicePacket, 0);
       sendPacketService(servicePacket);
+      Serial.println("ERROR BMP280");
+      return;
       //Послать сообщение об ошибке
-      return false;
     }
   }
-
+  Serial.println("SUCCESS BMP280");
   bmpDetector.setSampling(Adafruit_BMP280::MODE_FORCED,// Режим работы
                   Adafruit_BMP280::SAMPLING_X4,        // Точность изм. температуры
                   Adafruit_BMP280::SAMPLING_X16,       // Точность изм. давления
                   Adafruit_BMP280::FILTER_X16,         // Уровень фильтрации
                   Adafruit_BMP280::STANDBY_MS_1000);   // Период просыпания, мСек
-  return true;
 }

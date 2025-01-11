@@ -3,6 +3,16 @@
 #include <string.h>
 #define CHANNEL_NUMBER 8
 #define SIZE_TMD_DATA 8
+#define CENTRAL_MODULE_ID      0
+#define INTERNAL_MODULE_ID     1
+#define EXTERNAL_MODULE_ID     2
+#define PIPE_READ_ADDRESS          0xF0F0F0F0E1LL
+#define PIPE_WRITE_ADDRESS         0xF0F0F0F0E2LL
+#define SERIAL_SPEED               9600
+#define RADIO_CHANNEL_NUMBER       8
+#define DATA_SEGMENT_LENGTH        8
+#define DATA_SEGMENT_LENGTH_B      DATA_SEGMENT_LENGTH*sizeof(float)  //32
+#define COUNT_SEGMENTS_IN_PACKET   3
 RF24 radio(9, 10);  // указать номера пинов, куда подключаются CE и CSN
 
 float tmdData[SIZE_TMD_DATA];
