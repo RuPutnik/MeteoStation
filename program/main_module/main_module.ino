@@ -62,7 +62,6 @@ float** dataPacketInternal = nullptr;
 TYPE_PACKET currPacketType = TYPE_PACKET::UNKNOWN;
 int currPacketModuleId = INCORRECT_MODULE_ID;
 
-//Здесь сырые данные должны переводиться в адекватные единицы
 void setup()
 {
   Serial.begin(SERIAL_SPEED);
@@ -146,6 +145,8 @@ void loop(){
   }
 
   //TODO Использование полученных и проверенных данных
+  //TODO Здесь сырые данные должны переводиться в адекватные единицы
+  //TODO Не забыть о работе с модулем RTC и SD картой
 
 end_loop_with_reset:
   resetIncomingDataBuffers();
