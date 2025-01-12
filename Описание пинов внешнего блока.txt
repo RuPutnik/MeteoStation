@@ -1,4 +1,4 @@
-﻿NRF24L01:
+NRF24L01:
 CE - D9
 CS(N) - D10
 MO - D11
