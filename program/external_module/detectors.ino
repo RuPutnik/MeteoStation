@@ -1,6 +1,8 @@
 #ifndef DETECTORS
 #define DETECTORS
 
+sensors_event_t humidityEvent, tempEvent;
+
 //Функции получения данных
 float getTemperatureValue(){
   float tempAHT10, tempBMP280;

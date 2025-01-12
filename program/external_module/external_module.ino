@@ -1,6 +1,5 @@
 #include <Wire.h>
 #include <SPI.h>
-
 #include <nRF24L01.h>
 #include <RF24.h>
 #include <Adafruit_AHT10.h>
@@ -8,7 +7,7 @@
 
 #include <string.h>
 
-#define WORK_RADIO_DELAY_MSEC      10
+#define LOOP_DELAY_MSEC            10
 #define COUNT_DETECTOR             6
 #define START_DELAY_MSEC           3000
 #define PIPE_READ_ADDRESS          0xF0F0F0F0E1LL
@@ -34,15 +33,13 @@ Adafruit_AHT10 ahtDetector;
 Adafruit_BMP280 bmpDetector;
 RF24 radio(RADIO_CE_PORT, RADIO_CSN_PORT);
 
-sensors_event_t humidityEvent, tempEvent;
-
 int timeIntervalMsec;
 float** dataPacket = nullptr;
 float servicePacket[DATA_SEGMENT_LENGTH];
 float actionPacket[DATA_SEGMENT_LENGTH];
 bool detectorMap[COUNT_DETECTOR];
 float numberPacket;
-unsigned long prevTime=0;
+unsigned long prevTime = 0;
 
 enum TYPE_PACKET{
   DATA    = 1,
@@ -126,7 +123,7 @@ void loop() {
     analyzeIncomingPacket(actionPacket);  
   }  
   
-  delay(WORK_RADIO_DELAY_MSEC); //Обязательная задержка
+  delay(LOOP_DELAY_MSEC); //Обязательная задержка
   Serial.println("=== END ITERATION ===");
 }
 
@@ -346,7 +343,7 @@ void fillDataPacket(float** dataArray){
    dataArray[1][6]=1;
    dataArray[2][6]=2;
 
-   float resCkSum=calcCheckSum(dataArray[0], DATA_SEGMENT_LENGTH) + calcCheckSum(dataArray[1], DATA_SEGMENT_LENGTH) + calcCheckSum(dataArray[2], DATA_SEGMENT_LENGTH);
+   float resCkSum = calcFullCheckSum(dataArray, DATA_SEGMENT_LENGTH);
 
    dataArray[0][7]=resCkSum;
    dataArray[1][7]=resCkSum;

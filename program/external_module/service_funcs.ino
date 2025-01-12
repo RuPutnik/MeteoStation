@@ -20,6 +20,11 @@ float calcCheckSum(float* data, int sizeData){
   return sum;   
 }
 
+float calcFullCheckSum(float** dataArray, int sizeData)
+{
+  return calcCheckSum(dataArray[0], sizeData) + calcCheckSum(dataArray[1], sizeData) + calcCheckSum(dataArray[2], sizeData);
+}
+
 void debugDataPacket(float** packet){
   Serial.println("=== DATA PACKET ===");
   for(int i = 0; i < COUNT_SEGMENTS_IN_PACKET; i++){
