@@ -61,6 +61,7 @@ float** dataPacketExternal = nullptr;
 float** dataPacketInternal = nullptr;
 TYPE_PACKET currPacketType = TYPE_PACKET::UNKNOWN;
 int currPacketModuleId = INCORRECT_MODULE_ID;
+int currDisplayedModuleId = INTERNAL_MODULE_ID;
 
 void setup()
 {
@@ -106,12 +107,22 @@ void startRadio()
 }
 
 void loop(){
-  if (!radio.available())
+  if(radio.available())
   {
-    //Serial.println("No data");
-    goto end_loop;
+    processIncomingData();
   }
-    
+
+  //TODO Использование полученных и проверенных данных
+  //TODO Здесь сырые данные должны переводиться в адекватные единицы
+  //TODO Не забыть о работе с модулем RTC и SD картой
+  //TODO Сервисные пакеты удаляются после логгирования\обработки, пакеты с данными живут до получения нового пакета
+  //TODO Тут анализ нажатий клавиш на блоке, отправка управляющих пакетов и отображение полученных данных на дисплее
+
+  delay(LOOP_DELAY_MSEC);
+}
+
+void processIncomingData()
+{
   Serial.println("Data Incoming!");
   radio.read(currIncomingData, DATA_SEGMENT_LENGTH_B);
 
@@ -123,7 +134,7 @@ void loop(){
 
   if(!validIncomingData){
     Serial.println("DATA IS INVALID!");
-    goto end_loop;
+    return;
   }
 
   saveIncomingData(currIncomingData);
@@ -132,7 +143,7 @@ void loop(){
     //Если это сегмент пакета данных, анализ проводим только после получения сегмента 2, 
     //иначе будет попытка работы с неполным пакетом данных
     if(currIncomingData[6] != (COUNT_SEGMENTS_IN_PACKET - 1)){
-      goto end_loop;
+      return;
     }
   }
     
@@ -141,17 +152,8 @@ void loop(){
     debugSavedIncomingPacket();
   }else{
     Serial.println("!!Packet is Corrupted!!");
-    goto end_loop_with_reset;
+    resetCurrIncomingPacket(); //Пакет поврежден - очищаем буфер, в который он был записан
   }
-
-  //TODO Использование полученных и проверенных данных
-  //TODO Здесь сырые данные должны переводиться в адекватные единицы
-  //TODO Не забыть о работе с модулем RTC и SD картой
-
-end_loop_with_reset:
-  resetIncomingDataBuffers();
-end_loop:
-  delay(LOOP_DELAY_MSEC);
 }
 
 bool analyzeIncomingPacket(float* packet)
@@ -185,6 +187,11 @@ bool analyzeIncomingPacket(float* packet)
 //Сохраняем данные в нужный буфер в зависимости от результатов проведенного ранее анализа
 void saveIncomingData(float* packet)
 {
+  if(currPacketType == TYPE_PACKET::DATA && static_cast<int>(packet[6]) == 0 || currPacketType == TYPE_PACKET::SERVICE){
+    //Если это первый сегмент пакета данных и сервисный пакет, очищаем весь буфер данных или сервисный буфер для данного модуля
+    resetCurrIncomingPacket();
+  }
+
   if(currPacketModuleId == INTERNAL_MODULE_ID){
     if(currPacketType == TYPE_PACKET::DATA){
       memmove(dataPacketInternal[static_cast<int>(packet[6])], packet, DATA_SEGMENT_LENGTH_B);
@@ -222,15 +229,71 @@ bool checkIncomingDataIntegrity()
   return false;
 }
 
-void resetIncomingDataBuffers()
+bool isCompleteDataPacket(int moduleId)
 {
-  for(int i = 0; i < COUNT_SEGMENTS_IN_PACKET; i++){
-    memset(dataPacketInternal[i], 0, DATA_SEGMENT_LENGTH_B);
+  if(moduleId == INTERNAL_MODULE_ID)
+  {
+    return (dataPacketInternal[0][6] == 0 && dataPacketInternal[0][6] == 1 && dataPacketInternal[0][6] == 2);
   }
-  for(int i = 0; i < COUNT_SEGMENTS_IN_PACKET; i++){
-    memset(dataPacketExternal[i], 0, DATA_SEGMENT_LENGTH_B);
+  else if(moduleId == EXTERNAL_MODULE_ID)
+  {
+    return (dataPacketExternal[0][6] == 0 && dataPacketExternal[0][6] == 1 && dataPacketExternal[0][6] == 2);
   }
 
-  memset(servicePacketInternal, 0, DATA_SEGMENT_LENGTH_B);
-  memset(servicePacketExternal, 0, DATA_SEGMENT_LENGTH_B);
+  return false;
+}
+
+void resetCurrIncomingPacket()
+{
+  if(currPacketType == TYPE_PACKET::DATA){
+    resetCurrDataBuffer();
+  }else if(currPacketType == TYPE_PACKET::SERVICE){
+    resetCurrServiceBuffer();
+  }
+}
+
+void resetCurrDataBuffer()
+{
+  resetDataBuffer(currPacketModuleId);
+}
+
+void resetCurrServiceBuffer()
+{
+  resetServiceBuffer(currPacketModuleId);
+}
+
+void resetDataBuffer(int moduleId)
+{
+  if(moduleId == INTERNAL_MODULE_ID)
+  {
+    for(int i = 0; i < COUNT_SEGMENTS_IN_PACKET; i++){
+      memset(dataPacketInternal[i], 0, DATA_SEGMENT_LENGTH_B);
+    }
+  }
+  else if(moduleId == EXTERNAL_MODULE_ID)
+  {
+    for(int i = 0; i < COUNT_SEGMENTS_IN_PACKET; i++){
+      memset(dataPacketExternal[i], 0, DATA_SEGMENT_LENGTH_B);
+    }
+  }
+}
+
+void resetServiceBuffer(int moduleId)
+{
+  if(moduleId == INTERNAL_MODULE_ID)
+  {
+    memset(servicePacketInternal, 0, DATA_SEGMENT_LENGTH_B);
+  }
+  else if(moduleId == EXTERNAL_MODULE_ID)
+  {
+    memset(servicePacketExternal, 0, DATA_SEGMENT_LENGTH_B);
+  }
+}
+
+void resetIncomingDataBuffers()
+{
+  resetDataBuffer(INTERNAL_MODULE_ID);
+  resetDataBuffer(EXTERNAL_MODULE_ID);
+  resetServiceBuffer(INTERNAL_MODULE_ID);
+  resetServiceBuffer(EXTERNAL_MODULE_ID);
 }
