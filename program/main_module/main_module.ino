@@ -1,10 +1,14 @@
 #include <SPI.h>
 #include <RF24.h>
+#include <SD.h>
+#include <microDS3231.h>
 #include <LiquidCrystal_I2C.h>
 
 #include <string.h>
 
 #define LOOP_DELAY_MSEC            10
+#define KEY_POSTHANDLE_DELAY_MSEC  500       
+
 #define PIPE_READ_ADDRESS          0xF0F0F0F0E2LL
 #define PIPE_WRITE_ADDRESS         0xF0F0F0F0E1LL
 #define SERIAL_SPEED               9600
@@ -13,14 +17,17 @@
 #define DATA_SEGMENT_LENGTH_B      DATA_SEGMENT_LENGTH * sizeof(float)  //32
 #define COUNT_SEGMENTS_IN_PACKET   3
 
-#define CENTRAL_MODULE_ID      0
-#define INTERNAL_MODULE_ID     1
-#define EXTERNAL_MODULE_ID     2
-#define INCORRECT_MODULE_ID    3
-
-#define RADIO_CE_PORT          8
-#define RADIO_CSN_PORT         9
+#define RADIO_CE_PORT          8 //SPI CE??
+#define RADIO_CSN_PORT         9 //SPI CS(N)?
 #define LCD2004_ADDRESS        0x3F
+#define COUNT_KEYS             5
+
+enum MODULE_ID{
+  CENTRAL_MODULE_ID     = 0,
+  INTERNAL_MODULE_ID    = 1,
+  EXTERNAL_MODULE_ID    = 2,
+  INCORRECT_MODULE_ID   = 3
+};
 
 enum TYPE_PACKET{
   DATA    = 1,
@@ -28,6 +35,7 @@ enum TYPE_PACKET{
   SERVICE = 3,
   UNKNOWN = 4
 };
+
 enum COMMANDS_TYPE{
   RESTART_ALL          = 1,
   TURNOFF_RADIO        = 2,
@@ -50,8 +58,30 @@ enum SERVICE_MSG_TYPE{
   GET_ERROR_COMMAND    = 7
 };
 
+enum WORK_MODE{
+  SHOW_METEO_DATA = 0,
+  SHOW_COMMANDS   = 1
+};
+
+enum SHOW_DATA_MODE{
+  HUMAN    = 0,
+  SYSTEM   = 1
+};
+
+enum KEY_PORT{
+  KEY_1   = 4, //top left
+  KEY_2   = 3, //bottom left
+  KEY_3   = 5, //center
+  KEY_4   = 7, //top right
+  KEY_5   = 6  //bottom right
+};
+
 LiquidCrystal_I2C lcd(LCD2004_ADDRESS, 20, 4);
 RF24 radio(RADIO_CE_PORT, RADIO_CSN_PORT);
+MicroDS3231 rtc;
+Sd2Card card;
+SdVolume volume;
+SdFile root;
 
 float currIncomingData[DATA_SEGMENT_LENGTH];
 float servicePacketExternal[DATA_SEGMENT_LENGTH];
@@ -59,9 +89,12 @@ float servicePacketInternal[DATA_SEGMENT_LENGTH];
 float actionPacket[DATA_SEGMENT_LENGTH];
 float** dataPacketExternal = nullptr;
 float** dataPacketInternal = nullptr;
+
 TYPE_PACKET currPacketType = TYPE_PACKET::UNKNOWN;
-int currPacketModuleId = INCORRECT_MODULE_ID;
-int currDisplayedModuleId = INTERNAL_MODULE_ID;
+MODULE_ID currPacketModuleId = INCORRECT_MODULE_ID;
+MODULE_ID currDisplayedModuleId = INTERNAL_MODULE_ID;
+WORK_MODE currWorkMode  = SHOW_METEO_DATA;
+SHOW_DATA_MODE currShowDataMode = SHOW_DATA_MODE::HUMAN;
 
 void setup()
 {
@@ -117,8 +150,29 @@ void loop(){
   //TODO Не забыть о работе с модулем RTC и SD картой
   //TODO Сервисные пакеты удаляются после логгирования\обработки, пакеты с данными живут до получения нового пакета
   //TODO Тут анализ нажатий клавиш на блоке, отправка управляющих пакетов и отображение полученных данных на дисплее
+  //TODO Реализовать: функцию логгирования на сд карту и в сом порт. Реализовать функции получения значений параметров в виде строки. Реализовать функции переключения режима кнопок и текущего модуля
+  //TODO Реализовать функции обработки нажатий на кнопки
 
   delay(LOOP_DELAY_MSEC);
+}
+
+void startCardSD()
+{
+
+}
+
+void startRTC()
+{
+
+}
+
+void changeWorkMode()
+{
+  if(currWorkMode == WORK_MODE::SHOW_METEO_DATA){
+    currWorkMode = WORK_MODE::SHOW_COMMANDS;
+  }else{
+    currWorkMode = WORK_MODE::SHOW_METEO_DATA;
+  }
 }
 
 void processIncomingData()
@@ -158,22 +212,22 @@ void processIncomingData()
 
 bool analyzeIncomingPacket(float* packet)
 {
-  if(packet[0] != CENTRAL_MODULE_ID) 
+  if(packet[0] != MODULE_ID::CENTRAL_MODULE_ID) 
     return false; //Проверка, что данный пакет предназначен главному модулю
 
-  if(packet[1] == INTERNAL_MODULE_ID || packet[1] == EXTERNAL_MODULE_ID)
+  if(packet[1] == MODULE_ID::INTERNAL_MODULE_ID || packet[1] == MODULE_ID::EXTERNAL_MODULE_ID)
   {
-    currPacketModuleId = static_cast<int>(packet[1]);
+    currPacketModuleId = static_cast<MODULE_ID>(packet[1]);
   }
   else
   {
-    currPacketModuleId = INCORRECT_MODULE_ID;
+    currPacketModuleId = MODULE_ID::INCORRECT_MODULE_ID;
     return false;
   }
 
   if(packet[2] == TYPE_PACKET::DATA || packet[2] == TYPE_PACKET::SERVICE)
   {
-    currPacketType = static_cast<int>(packet[2]);
+    currPacketType = static_cast<TYPE_PACKET>(packet[2]);
   }
   else
   {
@@ -187,18 +241,18 @@ bool analyzeIncomingPacket(float* packet)
 //Сохраняем данные в нужный буфер в зависимости от результатов проведенного ранее анализа
 void saveIncomingData(float* packet)
 {
-  if(currPacketType == TYPE_PACKET::DATA && static_cast<int>(packet[6]) == 0 || currPacketType == TYPE_PACKET::SERVICE){
+  if((currPacketType == TYPE_PACKET::DATA && static_cast<int>(packet[6]) == 0) || currPacketType == TYPE_PACKET::SERVICE){
     //Если это первый сегмент пакета данных и сервисный пакет, очищаем весь буфер данных или сервисный буфер для данного модуля
     resetCurrIncomingPacket();
   }
 
-  if(currPacketModuleId == INTERNAL_MODULE_ID){
+  if(currPacketModuleId == MODULE_ID::INTERNAL_MODULE_ID){
     if(currPacketType == TYPE_PACKET::DATA){
       memmove(dataPacketInternal[static_cast<int>(packet[6])], packet, DATA_SEGMENT_LENGTH_B);
     }else if(currPacketType == TYPE_PACKET::SERVICE){
       memmove(servicePacketInternal, packet, DATA_SEGMENT_LENGTH_B);
     }
-  }else if(currPacketModuleId == EXTERNAL_MODULE_ID){
+  }else if(currPacketModuleId == MODULE_ID::EXTERNAL_MODULE_ID){
     if(currPacketType == TYPE_PACKET::DATA){
       memmove(dataPacketExternal[static_cast<int>(packet[6])], packet, DATA_SEGMENT_LENGTH_B);
     }else if(currPacketType == TYPE_PACKET::SERVICE){
@@ -210,14 +264,14 @@ void saveIncomingData(float* packet)
 //Проверяем целостность сохраненных данных, вычисляя контрольную сумму
 bool checkIncomingDataIntegrity()
 {
-  if(currPacketModuleId == INTERNAL_MODULE_ID){
+  if(currPacketModuleId == MODULE_ID::INTERNAL_MODULE_ID){
     if(currPacketType == TYPE_PACKET::DATA){
       const float checkSum = calcFullCheckSum(dataPacketInternal, DATA_SEGMENT_LENGTH);
       return (checkSum == dataPacketInternal[0][7] && checkSum == dataPacketInternal[1][7] && checkSum == dataPacketInternal[2][7]);
     }else if(currPacketType == TYPE_PACKET::SERVICE){
       return calcCheckSum(servicePacketInternal, DATA_SEGMENT_LENGTH) == servicePacketInternal[7];
     }
-  }else if(currPacketModuleId == EXTERNAL_MODULE_ID){
+  }else if(currPacketModuleId == MODULE_ID::EXTERNAL_MODULE_ID){
     if(currPacketType == TYPE_PACKET::DATA){
       const float checkSum = calcFullCheckSum(dataPacketExternal, DATA_SEGMENT_LENGTH);
       return (checkSum == dataPacketExternal[0][7] && checkSum == dataPacketExternal[1][7] && checkSum == dataPacketExternal[2][7]);
@@ -229,13 +283,13 @@ bool checkIncomingDataIntegrity()
   return false;
 }
 
-bool isCompleteDataPacket(int moduleId)
+bool isCompleteDataPacket(MODULE_ID moduleId)
 {
-  if(moduleId == INTERNAL_MODULE_ID)
+  if(moduleId == MODULE_ID::INTERNAL_MODULE_ID)
   {
     return (dataPacketInternal[0][6] == 0 && dataPacketInternal[0][6] == 1 && dataPacketInternal[0][6] == 2);
   }
-  else if(moduleId == EXTERNAL_MODULE_ID)
+  else if(moduleId == MODULE_ID::EXTERNAL_MODULE_ID)
   {
     return (dataPacketExternal[0][6] == 0 && dataPacketExternal[0][6] == 1 && dataPacketExternal[0][6] == 2);
   }
@@ -262,15 +316,15 @@ void resetCurrServiceBuffer()
   resetServiceBuffer(currPacketModuleId);
 }
 
-void resetDataBuffer(int moduleId)
+void resetDataBuffer(MODULE_ID moduleId)
 {
-  if(moduleId == INTERNAL_MODULE_ID)
+  if(moduleId == MODULE_ID::INTERNAL_MODULE_ID)
   {
     for(int i = 0; i < COUNT_SEGMENTS_IN_PACKET; i++){
       memset(dataPacketInternal[i], 0, DATA_SEGMENT_LENGTH_B);
     }
   }
-  else if(moduleId == EXTERNAL_MODULE_ID)
+  else if(moduleId == MODULE_ID::EXTERNAL_MODULE_ID)
   {
     for(int i = 0; i < COUNT_SEGMENTS_IN_PACKET; i++){
       memset(dataPacketExternal[i], 0, DATA_SEGMENT_LENGTH_B);
@@ -278,13 +332,13 @@ void resetDataBuffer(int moduleId)
   }
 }
 
-void resetServiceBuffer(int moduleId)
+void resetServiceBuffer(MODULE_ID moduleId)
 {
-  if(moduleId == INTERNAL_MODULE_ID)
+  if(moduleId == MODULE_ID::INTERNAL_MODULE_ID)
   {
     memset(servicePacketInternal, 0, DATA_SEGMENT_LENGTH_B);
   }
-  else if(moduleId == EXTERNAL_MODULE_ID)
+  else if(moduleId == MODULE_ID::EXTERNAL_MODULE_ID)
   {
     memset(servicePacketExternal, 0, DATA_SEGMENT_LENGTH_B);
   }

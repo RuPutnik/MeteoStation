@@ -1,6 +1,3 @@
-#ifndef SERVICE_FUNCS
-#define SERVICE_FUNCS
-
 //Служебные функции
 
 float normalize(int value){
@@ -75,5 +72,3 @@ void fillIncomingActionPacket(float* incomingPacket, int module_id, COMMANDS_TYP
   incomingPacket[6] = 0;
   incomingPacket[7] = calcCheckSum(incomingPacket, DATA_SEGMENT_LENGTH);
 }
-
-#endif
