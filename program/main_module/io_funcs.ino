@@ -1,4 +1,19 @@
-//Функции для обработки входа (нажатия кнопок) и выхода (работа с дисплеем)
+//Функции для обработки входа (нажатия кнопок) и выхода (работа с дисплеем, запись в SD карту)
+
+void startDisplay()
+{
+  lcd.init();                       // Инициируем работу с LCD дисплеем
+  lcd.backlight();                  // Включаем подсветку LCD дисплея
+  lcd.setCursor(0, 0);              // Устанавливаем курсор в позицию (0 столбец, 0 строка)
+  lcd.print("LCD");                 // Выводим текст "LCD", начиная с установленной позиции курсора
+  lcd.setCursor(0, 2);              // Устанавливаем курсор в позицию (0 столбец, 1 строка)
+  lcd.print("www.iarduino.ru");
+}
+
+void updateDisplay()
+{
+  //Анализировать тек.модуль, режим работы, текущую команду/метеопараметр
+}
 
 struct KeyBoundle
 {
@@ -106,6 +121,42 @@ String formUVMsg()
 }
 
 String formRainMsg()
+{
+
+}
+
+String formCommandMsg(COMMANDS_TYPE commandId)
+{
+  switch(commandId){
+    case RESTART_ALL:
+      return "Перезапустить все";
+    case TURNOFF_RADIO:
+      return "Выключить радио";
+    case CHANGE_SEND_INTERVAL:
+      return "Изм.интер.отправ.";
+    case STOP_SEND_DATA:
+      return "Прекр. отправку";
+    case RESUME_SEND_DATA:
+      return "Продолж. отправку";
+    case GET_DETECTOR_MAP:
+      return "Получить карту";
+    case GET_TIME_INTERVAL:
+      return "Получить интерв.";
+    case GET_LIFE_TIME:
+      return "Получ. время жизни";
+    case HEARTBEAT:
+      return "Пинг";
+    default:
+      return "Команда <?>";  
+  }
+}
+
+String getCurrDateTime()
+{
+
+}
+
+void sendMsgToCard(String msg)
 {
 
 }

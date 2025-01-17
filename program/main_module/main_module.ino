@@ -7,7 +7,8 @@
 #include <string.h>
 
 #define LOOP_DELAY_MSEC            10
-#define KEY_POSTHANDLE_DELAY_MSEC  500       
+#define KEY_POSTHANDLE_DELAY_MSEC  1000
+#define SETUP_DELAY                2000 
 
 #define PIPE_READ_ADDRESS          0xF0F0F0F0E2LL
 #define PIPE_WRITE_ADDRESS         0xF0F0F0F0E1LL
@@ -95,6 +96,9 @@ MODULE_ID currPacketModuleId = INCORRECT_MODULE_ID;
 MODULE_ID currDisplayedModuleId = INTERNAL_MODULE_ID;
 WORK_MODE currWorkMode  = SHOW_METEO_DATA;
 SHOW_DATA_MODE currShowDataMode = SHOW_DATA_MODE::HUMAN;
+COMMANDS_TYPE currCommand = COMMANDS_TYPE::TURNOFF_RADIO;
+int currMeteoParamExternal = 1;
+int currMeteoParamInternal = 1;
 
 void setup()
 {
@@ -115,17 +119,9 @@ void setup()
   }
   
   startDisplay();
-  startRadio();   
-}
+  startRadio();
 
-void startDisplay()
-{
-  lcd.init();                       // Инициируем работу с LCD дисплеем
-  lcd.backlight();                  // Включаем подсветку LCD дисплея
-  lcd.setCursor(0, 0);              // Устанавливаем курсор в позицию (0 столбец, 0 строка)
-  lcd.print("LCD");                 // Выводим текст "LCD", начиная с установленной позиции курсора
-  lcd.setCursor(0, 2);              // Устанавливаем курсор в позицию (0 столбец, 1 строка)
-  lcd.print("www.iarduino.ru");
+  delay(SETUP_DELAY);
 }
 
 void startRadio()
