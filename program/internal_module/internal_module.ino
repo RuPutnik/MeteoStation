@@ -39,7 +39,7 @@ float servicePacket[DATA_SEGMENT_LENGTH];
 float actionPacket[DATA_SEGMENT_LENGTH];
 bool detectorMap[COUNT_DETECTOR];
 float numberPacket;
-unsigned long prevTime = 0;
+unsigned long prevTime;
 
 enum TYPE_PACKET{
   DATA    = 1,
@@ -72,8 +72,9 @@ enum SERVICE_MSG_TYPE{
 void setup() {
   Serial.begin(SERIAL_SPEED);
   pinMode(LED_PORT, OUTPUT);
-  numberPacket=0;
-  timeIntervalMsec=DEFAULT_TIME_INTERVAL_MSEC;
+  numberPacket = 0;
+  prevTime = 0;
+  timeIntervalMsec = DEFAULT_TIME_INTERVAL_MSEC;
   resetDetectorMap(detectorMap);
 
   if(!dataPacket){
@@ -100,7 +101,7 @@ void setup() {
 }
 
 void loop() {
-  if((millis()-prevTime)>=timeIntervalMsec){
+  if((millis()-prevTime) >= static_cast<unsigned long>(timeIntervalMsec)){
     Serial.println("=== FORM DATA PACKET ===");
     //формируем массив данных
     fillDataPacket((float**)dataPacket);
@@ -258,6 +259,15 @@ void fillServicePacketGEC(float* packet, float* actionPacket){
 
 //Функции-реакции на управляющие пакеты
 void restartAll(){
+  for(int i = 0; i < COUNT_SEGMENTS_IN_PACKET; i++){
+    delete[] dataPacket[i];
+  }
+  delete[] dataPacket;
+  dataPacket = nullptr;
+
+  memset(servicePacket, 0, DATA_SEGMENT_LENGTH_B);
+  memset(actionPacket, 0, DATA_SEGMENT_LENGTH_B);
+  
   stopRadio();
   setup();
 }
@@ -297,12 +307,12 @@ void heartbeatReaction(){
 
 //Функция формирования пакета данных
 void fillDataPacket(float** dataArray){
-  dataArray[0][0]=CENTRAL_MODULE_ID;
-  dataArray[0][1]=MODULE_ID;
-  dataArray[0][2]=TYPE_PACKET::DATA;
+  dataArray[0][0] = CENTRAL_MODULE_ID;
+  dataArray[0][1] = MODULE_ID;
+  dataArray[0][2] = TYPE_PACKET::DATA;
 
-  memmove(dataArray[1], dataArray[0], 3*sizeof(float)); //Копируем данные в оставшиеся сегменты пакета
-  memmove(dataArray[2], dataArray[0], 3*sizeof(float));
+  memmove(dataArray[1], dataArray[0], 3 * sizeof(float)); //Копируем данные в оставшиеся сегменты пакета
+  memmove(dataArray[2], dataArray[0], 3 * sizeof(float));
 
   dataArray[0][3] = -1;
   dataArray[0][4] = -1;
@@ -335,24 +345,24 @@ void fillDataPacket(float** dataArray){
      dataArray[2][4] = getUVValue();
    }
 
-   dataArray[0][5]=numberPacket;
-   dataArray[1][5]=numberPacket;
-   dataArray[2][5]=numberPacket;
+   dataArray[0][5] = numberPacket;
+   dataArray[1][5] = numberPacket;
+   dataArray[2][5] = numberPacket;
 
-   dataArray[0][6]=0;
-   dataArray[1][6]=1;
-   dataArray[2][6]=2;
+   dataArray[0][6] = 0;
+   dataArray[1][6] = 1;
+   dataArray[2][6] = 2;
 
-   float resCkSum = calcFullCheckSum(dataArray, DATA_SEGMENT_LENGTH);
+   const float resCkSum = calcFullCheckSum(dataArray, DATA_SEGMENT_LENGTH);
 
-   dataArray[0][7]=resCkSum;
-   dataArray[1][7]=resCkSum;
-   dataArray[2][7]=resCkSum;
+   dataArray[0][7] = resCkSum;
+   dataArray[1][7] = resCkSum;
+   dataArray[2][7] = resCkSum;
   
-  if(numberPacket<1000000000){
+  if(numberPacket < 1000000000){
     numberPacket++;
   }else{
-    numberPacket=0;
+    numberPacket = 0;
   }
 }
 
