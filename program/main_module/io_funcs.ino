@@ -2,12 +2,16 @@
 
 void startDisplay()
 {
-  lcd.init();                       // Инициируем работу с LCD дисплеем
-  lcd.backlight();                  // Включаем подсветку LCD дисплея
-  lcd.setCursor(0, 0);              // Устанавливаем курсор в позицию (0 столбец, 0 строка)
-  lcd.print("LCD");                 // Выводим текст "LCD", начиная с установленной позиции курсора
-  lcd.setCursor(0, 2);              // Устанавливаем курсор в позицию (0 столбец, 1 строка)
-  lcd.print("www.iarduino.ru");
+  lcd.init(); //Инициируем работу с LCD дисплеем
+  lcd.backlight(); //Включаем подсветку LCD дисплея
+  lcd.setCursor(0, 0);
+  lcd.print("--------------------");
+  lcd.setCursor(0, 1); 
+  lcd.print("Метеостанция");                
+  lcd.setCursor(0, 2);
+  lcd.print("Выполняется запуск.."); 
+  lcd.setCursor(0, 3);
+  lcd.print("--------------------");
 }
 
 void updateDisplay()
@@ -96,33 +100,194 @@ void bottomLeftButtonHandler()
 
 String formTemperatureMsg()
 {
+  float temperatureValue;
+  String scaleName;
 
+  if(currDisplayedModuleId == MODULE_ID::INTERNAL_MODULE_ID)
+  {
+    temperatureValue = dataPacketInternal[0][3];
+  }
+  else if(currDisplayedModuleId == MODULE_ID::EXTERNAL_MODULE_ID)
+  {
+    temperatureValue = dataPacketExternal[0][3];
+  }
+  else
+  {
+    return "T = <?>";
+  }
+
+  if(currShowDataMode == SHOW_DATA_MODE::CLASSIC)
+  {
+    scaleName = "C";
+  }
+  else
+  {
+    temperatureValue = temperatureValue * 1.8 + 32; //Перевод из цельсия в фаренгейты
+    scaleName = "F";
+  }
+
+  return "T = " + static_cast<String>(temperatureValue) + scaleName;
 } 
 
 String formPressureMsg()
 {
+  if(currDisplayedModuleId == MODULE_ID::EXTERNAL_MODULE_ID)
+  {
+    float pressureValue = dataPacketExternal[1][4];
+    String scaleName;
 
+    if(currShowDataMode == SHOW_DATA_MODE::CLASSIC)
+    {
+      pressureValue = pressureValue / 133.3;
+      scaleName = "млм рт.ст.";
+    }
+    else
+    {
+      scaleName = "Па";
+    }
+
+    return "P = " + static_cast<String>(pressureValue) + scaleName;
+  }
+  else
+  {
+    return "P = <?>";
+  }
 }
 
 //Влажность
 String formHumidityMsg()
 {
-  //Анализировать currShowDataMode
+  float humidityValue;
+
+  if(currDisplayedModuleId == MODULE_ID::INTERNAL_MODULE_ID)
+  {
+    humidityValue = dataPacketInternal[0][4];
+  }
+  else if(currDisplayedModuleId == MODULE_ID::EXTERNAL_MODULE_ID)
+  {
+    humidityValue = dataPacketExternal[0][4];
+  }
+  else
+  {
+    return "Отн. влажн. = <?>";
+  }
+
+  return "Отн. влажн. = " + static_cast<String>(humidityValue) + "%";
 }
 
 String formSolarMsg()
 {
+  if(currDisplayedModuleId == MODULE_ID::EXTERNAL_MODULE_ID)
+  {
+    float solarValue = dataPacketExternal[2][3];
+    String scaleName;
 
+    if(currShowDataMode == SHOW_DATA_MODE::CLASSIC)
+    {
+      solarValue = normalize(solarValue) * 100;
+      scaleName = "%";
+    }
+    else
+    {
+      scaleName = " Абс.";
+    }
+
+    return "Освещ. = " + static_cast<String>(solarValue) + scaleName;
+  }
+  else
+  {
+    return "Освещ. = <?>";
+  }
 }
 
 String formUVMsg()
 {
+  if(currDisplayedModuleId == MODULE_ID::EXTERNAL_MODULE_ID)
+  {
+    float uvValue = dataPacketExternal[2][4];
+    String scaleName;
 
+    if(currShowDataMode == SHOW_DATA_MODE::CLASSIC)
+    {
+      uvValue = uvValue / 20.5;
+      scaleName = " Инд."; //В результате данных преобразований получаем индекс УФ излучения в диапазоне 0..10
+    }
+    else
+    {
+      scaleName = " Абс.";
+    }
+
+    return "УФ = " + static_cast<String>(uvValue) + scaleName;
+  }
+  else
+  {
+    return "УФ = <?>";
+  }
 }
 
 String formRainMsg()
 {
+  if(currDisplayedModuleId == MODULE_ID::EXTERNAL_MODULE_ID)
+  {
+    float rainValue = dataPacketExternal[1][3];
+    String scaleName;
 
+    if(currShowDataMode == SHOW_DATA_MODE::CLASSIC)
+    {
+      rainValue = normalize(rainValue) * 100;
+      scaleName = "%";
+    }
+    else
+    {
+      scaleName = " Абс.";
+    }
+
+    return "Дождь = " + static_cast<String>(rainValue) + scaleName;
+  }
+  else
+  {
+    return "Дождь = <?>";
+  }
+}
+
+String formMicrophoneMsg()
+{
+  if(currDisplayedModuleId == MODULE_ID::INTERNAL_MODULE_ID)
+  {
+    float microphoneValue = dataPacketInternal[1][4];
+    String scaleName;
+
+    if(currShowDataMode == SHOW_DATA_MODE::CLASSIC)
+    {
+      microphoneValue = normalize(microphoneValue * 2) * 100;
+      scaleName = "%";
+    }
+    else
+    {
+      scaleName = " Абс.";
+    }
+
+    return "Звук = " + static_cast<String>(microphoneValue) + scaleName;
+  }
+  else
+  {
+    return "Звук = <?>";
+  }
+}
+
+String formMQ135Msg()
+{
+  //Углекислый газ
+  if(currDisplayedModuleId == MODULE_ID::INTERNAL_MODULE_ID)
+  {
+    float carbonDioxideValue = dataPacketInternal[1][3];
+
+    return "Углек.газ = " + static_cast<String>(carbonDioxideValue) + "PPM";
+  }
+  else
+  {
+    return "Углек.газ = <?>";
+  }
 }
 
 String formCommandMsg(COMMANDS_TYPE commandId)
@@ -153,10 +318,10 @@ String formCommandMsg(COMMANDS_TYPE commandId)
 
 String getCurrDateTime()
 {
-
+  //TODO
 }
 
 void sendMsgToCard(String msg)
 {
-
+  //TODO
 }

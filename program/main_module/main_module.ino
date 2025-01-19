@@ -65,8 +65,8 @@ enum WORK_MODE{
 };
 
 enum SHOW_DATA_MODE{
-  HUMAN    = 0,
-  SYSTEM   = 1
+  CLASSIC       = 0,
+  ALTERNATIVE   = 1
 };
 
 enum KEY_PORT{
@@ -92,10 +92,10 @@ float** dataPacketExternal = nullptr;
 float** dataPacketInternal = nullptr;
 
 TYPE_PACKET currPacketType = TYPE_PACKET::UNKNOWN;
-MODULE_ID currPacketModuleId = INCORRECT_MODULE_ID;
-MODULE_ID currDisplayedModuleId = INTERNAL_MODULE_ID;
-WORK_MODE currWorkMode  = SHOW_METEO_DATA;
-SHOW_DATA_MODE currShowDataMode = SHOW_DATA_MODE::HUMAN;
+MODULE_ID currPacketModuleId = MODULE_ID::INCORRECT_MODULE_ID;
+MODULE_ID currDisplayedModuleId = MODULE_ID::INTERNAL_MODULE_ID;
+WORK_MODE currWorkMode  = WORK_MODE::SHOW_METEO_DATA;
+SHOW_DATA_MODE currShowDataMode = SHOW_DATA_MODE::CLASSIC;
 COMMANDS_TYPE currCommand = COMMANDS_TYPE::TURNOFF_RADIO;
 int currMeteoParamExternal = 1;
 int currMeteoParamInternal = 1;
@@ -154,12 +154,14 @@ void loop(){
 
 void startCardSD()
 {
-
+  //TODO
 }
 
 void startRTC()
 {
-
+  //Запросить время из потока ввода, если возможно. Иначе продолжить работу как есть
+  //Если поток ввода доступен, также можно с помощью ввода команды продолжить запуск как есть и попросить вывести текущее время
+  //TODO
 }
 
 void changeWorkMode()
@@ -346,4 +348,9 @@ void resetIncomingDataBuffers()
   resetDataBuffer(EXTERNAL_MODULE_ID);
   resetServiceBuffer(INTERNAL_MODULE_ID);
   resetServiceBuffer(EXTERNAL_MODULE_ID);
+}
+
+void generateActionPacket(COMMANDS_TYPE commandId, float* actionPacket)
+{
+
 }
