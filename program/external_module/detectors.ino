@@ -23,17 +23,15 @@ float getPressureValue(){
 }
 
 float getSolarValue(){
-  return normalize(analogRead(TEMT6000_PORT));
+  return analogRead(TEMT6000_PORT);
 }
 
 float getUVValue(){
-float UV=analogRead(GUAVA_PORT)/20.0 - 1;
-if(UV<1) UV=0;
-return UV; 
+  return analogRead(GUAVA_PORT); 
 }
 
 float getRainValue(){
-  return normalize(analogRead(RAIN_DETECT_PORT));
+  return analogRead(RAIN_DETECT_PORT);
 }
 
 #endif
