@@ -3,7 +3,7 @@
 #include <nRF24L01.h>
 #include <RF24.h>
 #include <Adafruit_AHT10.h>
-#include <Adafruit_BMP280.h>
+#include <MQ135.h>
 
 #include <string.h>
 
@@ -22,16 +22,15 @@
 #define CENTRAL_MODULE_ID          0
 #define MODULE_ID                  1
 
-#define RAIN_DETECT_PORT           A0
-#define TEMT6000_PORT              A1
-#define GUAVA_PORT                 A2
+#define MQ135_PORT                 A0
+#define MICROPHONE_PORT            A1
 #define LED_PORT                   2
 #define RADIO_CE_PORT              9
 #define RADIO_CSN_PORT             10
 
 Adafruit_AHT10 ahtDetector;
-Adafruit_BMP280 bmpDetector;
 RF24 radio(RADIO_CE_PORT, RADIO_CSN_PORT);
+MQ135 mq135_sensor(MQ135_PORT);
 
 int timeIntervalMsec;
 float** dataPacket = nullptr;
@@ -89,7 +88,6 @@ void setup() {
   startRadio();
 
   startAHT10();
-  startBMP280();
   
   delay(START_DELAY_MSEC);
   turnOffLED();
@@ -330,20 +328,15 @@ void fillDataPacket(float** dataArray){
    }
 
    if(detectorMap[2]){
-     dataArray[1][3] = getRainValue();
+     dataArray[1][3] = getMQ135Value();
    }
 
    if(detectorMap[3]){
-     dataArray[1][4] = getPressureValue();
+     dataArray[1][4] = getMicrophoneValue();
    }
 
-   if(detectorMap[4]){
-     dataArray[2][3] = getSolarValue();
-   }
-
-   if(detectorMap[5]){
-     dataArray[2][4] = getUVValue();
-   }
+   dataArray[2][3] = 0;
+   dataArray[2][4] = 0;
 
    dataArray[0][5] = numberPacket;
    dataArray[1][5] = numberPacket;
@@ -405,25 +398,4 @@ void startAHT10(){
     }
   }
   Serial.println("SUCCESS AHT10");
-}
-
-void startBMP280(){
-  int count=10;
-  while(!bmpDetector.begin()) {
-    delay(10);
-    count--;
-    if(count<0){
-      fillServicePacketESD(servicePacket, 0);
-      sendPacketService(servicePacket);
-      Serial.println("ERROR BMP280");
-      return;
-      //Послать сообщение об ошибке
-    }
-  }
-  Serial.println("SUCCESS BMP280");
-  bmpDetector.setSampling(Adafruit_BMP280::MODE_FORCED,// Режим работы
-                  Adafruit_BMP280::SAMPLING_X4,        // Точность изм. температуры
-                  Adafruit_BMP280::SAMPLING_X16,       // Точность изм. давления
-                  Adafruit_BMP280::FILTER_X16,         // Уровень фильтрации
-                  Adafruit_BMP280::STANDBY_MS_1000);   // Период просыпания, мСек
 }
