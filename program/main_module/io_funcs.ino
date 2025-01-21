@@ -57,6 +57,7 @@ void buttonsHandler()
     const int portValue = digitalRead(keyBundles[i].port);
     if(portValue == HIGH){
       keyBundles[i].handlerPtr();
+      updateDisplay();
       //Для предотвращения многократного срабатывания одной и той же кнопки при хотя бы небольшом зажатии
       delay(KEY_POSTHANDLE_DELAY_MSEC);
     }
@@ -318,10 +319,56 @@ String formCommandMsg(COMMANDS_TYPE commandId)
 
 String getCurrDateTime()
 {
-  //TODO
+  char time[8];
+  char date[10];
+  char dateTime[17];
+
+  memset(dateTime, 0, 17);
+
+  rtc.getTimeChar(time);
+  rtc.getDateChar(date);
+
+  strncpy(dateTime, date, 6);
+  dateTime[6] = date[8]; //Берем 2 последние цифры года
+  dateTime[7] = date[9];
+  dateTime[8] = ' ';
+  strcpy(dateTime + 9, time);
+
+  return String{dateTime};
 }
 
-void sendMsgToCard(String msg)
+void sendDataToCard(String msg){
+  sendMsgToCard(LOG_MSG_TYPE::METEODATA, msg);
+}
+
+void sendInfoToCard(String msg){
+  sendMsgToCard(LOG_MSG_TYPE::INFO, msg);
+}
+
+void sendErrorToCard(String msg){
+  sendMsgToCard(LOG_MSG_TYPE::ERROR, msg);
+}
+
+void sendMsgToCard(LOG_MSG_TYPE typeMsg, String msg)
 {
-  //TODO
+  File logFile = SD.open(LOG_FILENAME, FILE_WRITE);
+  String prefixMsg;
+
+  switch(typeMsg){
+    case LOG_MSG_TYPE::METEODATA:
+      prefixMsg = "[Данные] ";
+    break;
+    case LOG_MSG_TYPE::INFO:
+      prefixMsg = "[Инфо] ";
+    break;
+    case LOG_MSG_TYPE::ERROR:
+      prefixMsg = "[Ошибка] ";
+    break;
+    default:
+      prefixMsg = "[?] ";
+    break;
+  }
+
+  logFile.println(prefixMsg + msg);
+  logFile.close();
 }

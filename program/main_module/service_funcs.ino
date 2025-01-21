@@ -20,19 +20,15 @@ float calcFullCheckSum(float** dataArray, int sizeData)
 void debugSavedIncomingPacket()
 {
   if(currPacketModuleId == INTERNAL_MODULE_ID){
-    Serial.println("=== INTERNAL PACKET ===");
-    if(currPacketType == TYPE_PACKET::DATA){
-      debugDataPacket(dataPacketInternal);
-    }else if(currPacketType == TYPE_PACKET::SERVICE){
-      debugServicePacket(servicePacketInternal);
-    }
+    Serial.println("=== INTERNAL PACKET ===");    
   }else if(currPacketModuleId == EXTERNAL_MODULE_ID){
     Serial.println("=== EXTERNAL PACKET ===");
-    if(currPacketType == TYPE_PACKET::DATA){
-      debugDataPacket(dataPacketExternal);
-    }else if(currPacketType == TYPE_PACKET::SERVICE){
-      debugServicePacket(servicePacketExternal);
-    }
+  }
+
+  if(currPacketType == TYPE_PACKET::DATA){
+    debugDataPacket(dataPacketInternal);
+  }else if(currPacketType == TYPE_PACKET::SERVICE){
+    debugServicePacket(servicePacketInternal);
   }
 }
 
@@ -71,4 +67,34 @@ void fillIncomingActionPacket(float* incomingPacket, int module_id, COMMANDS_TYP
   incomingPacket[5] = 0;
   incomingPacket[6] = 0;
   incomingPacket[7] = calcCheckSum(incomingPacket, DATA_SEGMENT_LENGTH);
+}
+
+float* getServicePacket(MODULE_ID moduleId){
+  if(moduleId == MODULE_ID::INTERNAL_MODULE_ID)
+  {
+    return servicePacketInternal;
+  }
+  else if(moduleId == MODULE_ID::EXTERNAL_MODULE_ID)
+  {
+    return servicePacketExternal;
+  }
+  else
+  {
+    return nullptr;
+  }
+}
+
+float** getMeteoDataPacket(MODULE_ID moduleId){
+  if(moduleId == MODULE_ID::INTERNAL_MODULE_ID)
+  {
+    return dataPacketInternal;
+  }
+  else if(moduleId == MODULE_ID::EXTERNAL_MODULE_ID)
+  {
+    return dataPacketExternal;
+  }
+  else
+  {
+    return nullptr;
+  }
 }

@@ -23,6 +23,8 @@
 #define LCD2004_ADDRESS        0x3F
 #define COUNT_KEYS             5
 
+#define LOG_FILENAME          "MeteoData.log"
+
 enum MODULE_ID{
   CENTRAL_MODULE_ID     = 0,
   INTERNAL_MODULE_ID    = 1,
@@ -75,6 +77,12 @@ enum KEY_PORT{
   KEY_3   = 5, //center
   KEY_4   = 7, //top right
   KEY_5   = 6  //bottom right
+};
+
+enum LOG_MSG_TYPE{
+  METEODATA = 0,
+  INFO      = 1,
+  ERROR     = 2
 };
 
 LiquidCrystal_I2C lcd(LCD2004_ADDRESS, 20, 4);
@@ -244,19 +252,13 @@ void saveIncomingData(float* packet)
     resetCurrIncomingPacket();
   }
 
-  if(currPacketModuleId == MODULE_ID::INTERNAL_MODULE_ID){
-    if(currPacketType == TYPE_PACKET::DATA){
-      memmove(dataPacketInternal[static_cast<int>(packet[6])], packet, DATA_SEGMENT_LENGTH_B);
+  if(currPacketType == TYPE_PACKET::DATA){
+      float** dataPacket = getMeteoDataPacket(currPacketModuleId);
+      memmove(dataPacket[static_cast<int>(packet[6])], packet, DATA_SEGMENT_LENGTH_B);
     }else if(currPacketType == TYPE_PACKET::SERVICE){
-      memmove(servicePacketInternal, packet, DATA_SEGMENT_LENGTH_B);
+      float* servicePacket = getServicePacket(currPacketModuleId);
+      memmove(servicePacket, packet, DATA_SEGMENT_LENGTH_B);
     }
-  }else if(currPacketModuleId == MODULE_ID::EXTERNAL_MODULE_ID){
-    if(currPacketType == TYPE_PACKET::DATA){
-      memmove(dataPacketExternal[static_cast<int>(packet[6])], packet, DATA_SEGMENT_LENGTH_B);
-    }else if(currPacketType == TYPE_PACKET::SERVICE){
-      memmove(servicePacketExternal, packet, DATA_SEGMENT_LENGTH_B);
-    }
-  }
 }
 
 //Проверяем целостность сохраненных данных, вычисляя контрольную сумму
@@ -283,16 +285,11 @@ bool checkIncomingDataIntegrity()
 
 bool isCompleteDataPacket(MODULE_ID moduleId)
 {
-  if(moduleId == MODULE_ID::INTERNAL_MODULE_ID)
-  {
-    return (dataPacketInternal[0][6] == 0 && dataPacketInternal[0][6] == 1 && dataPacketInternal[0][6] == 2);
-  }
-  else if(moduleId == MODULE_ID::EXTERNAL_MODULE_ID)
-  {
-    return (dataPacketExternal[0][6] == 0 && dataPacketExternal[0][6] == 1 && dataPacketExternal[0][6] == 2);
-  }
+  float** dataPacket = getMeteoDataPacket(moduleId);
+  if(!dataPacket) 
+    return false;
 
-  return false;
+  return dataPacketInternal[0][6] == 0 && dataPacketInternal[0][6] == 1 && dataPacketInternal[0][6] == 2;
 }
 
 void resetCurrIncomingPacket()
@@ -316,30 +313,22 @@ void resetCurrServiceBuffer()
 
 void resetDataBuffer(MODULE_ID moduleId)
 {
-  if(moduleId == MODULE_ID::INTERNAL_MODULE_ID)
-  {
-    for(int i = 0; i < COUNT_SEGMENTS_IN_PACKET; i++){
-      memset(dataPacketInternal[i], 0, DATA_SEGMENT_LENGTH_B);
-    }
-  }
-  else if(moduleId == MODULE_ID::EXTERNAL_MODULE_ID)
-  {
-    for(int i = 0; i < COUNT_SEGMENTS_IN_PACKET; i++){
-      memset(dataPacketExternal[i], 0, DATA_SEGMENT_LENGTH_B);
-    }
+  float** dataPacket = getMeteoDataPacket(moduleId);
+  if(!dataPacket) 
+    return;
+
+  for(int i = 0; i < COUNT_SEGMENTS_IN_PACKET; i++){
+    memset(dataPacket[i], 0, DATA_SEGMENT_LENGTH_B);
   }
 }
 
 void resetServiceBuffer(MODULE_ID moduleId)
 {
-  if(moduleId == MODULE_ID::INTERNAL_MODULE_ID)
-  {
-    memset(servicePacketInternal, 0, DATA_SEGMENT_LENGTH_B);
-  }
-  else if(moduleId == MODULE_ID::EXTERNAL_MODULE_ID)
-  {
-    memset(servicePacketExternal, 0, DATA_SEGMENT_LENGTH_B);
-  }
+  float* servicePacket = getServicePacket(moduleId);
+  if(!servicePacket) 
+    return;
+
+  memset(servicePacket, 0, DATA_SEGMENT_LENGTH_B);
 }
 
 void resetIncomingDataBuffers()
