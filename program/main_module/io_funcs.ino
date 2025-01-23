@@ -351,7 +351,21 @@ void sendErrorToCard(String msg){
 
 void sendMsgToCard(LOG_MSG_TYPE typeMsg, String msg)
 {
-  File logFile = SD.open(LOG_FILENAME, FILE_WRITE);
+  if(!sdCardInitialized){
+    return;
+  }
+  activateSdCard(); //Переключаем SPI на работу с Sd картой
+
+  File logFile = SD.open(LOG_FILENAME);
+
+  if(!logFile){
+    logFile = SD.open(LOG_FILENAME, FILE_WRITE);
+    if(!logFile){
+      Serial.println("Error creation log file!");
+      return;
+    }
+  }
+
   String prefixMsg;
 
   switch(typeMsg){

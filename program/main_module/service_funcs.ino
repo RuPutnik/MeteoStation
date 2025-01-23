@@ -98,3 +98,13 @@ float** getMeteoDataPacket(MODULE_ID moduleId){
     return nullptr;
   }
 }
+
+void activateRadio(){
+  digitalWrite(RADIO_CSN_PIN, LOW);
+  digitalWrite(SD_CARD_CSN_PIN, HIGH);
+}
+
+void activateSdCard(){
+  digitalWrite(RADIO_CSN_PIN, HIGH);
+  digitalWrite(SD_CARD_CSN_PIN, LOW);
+}

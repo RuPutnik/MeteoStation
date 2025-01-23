@@ -18,10 +18,11 @@
 #define DATA_SEGMENT_LENGTH_B      DATA_SEGMENT_LENGTH * sizeof(float)  //32
 #define COUNT_SEGMENTS_IN_PACKET   3
 
-#define RADIO_CE_PORT          8 //SPI CE??
-#define RADIO_CSN_PORT         9 //SPI CS(N)?
+#define RADIO_CE_PIN           8
+#define RADIO_CSN_PIN          9
 #define LCD2004_ADDRESS        0x3F
 #define COUNT_KEYS             5
+#define SD_CARD_CSN_PIN        10
 
 #define LOG_FILENAME          "MeteoData.log"
 
@@ -86,11 +87,8 @@ enum LOG_MSG_TYPE{
 };
 
 LiquidCrystal_I2C lcd(LCD2004_ADDRESS, 20, 4);
-RF24 radio(RADIO_CE_PORT, RADIO_CSN_PORT);
+RF24 radio(RADIO_CE_PIN, RADIO_CSN_PIN);
 MicroDS3231 rtc;
-Sd2Card card;
-SdVolume volume;
-SdFile root;
 
 float currIncomingData[DATA_SEGMENT_LENGTH];
 float servicePacketExternal[DATA_SEGMENT_LENGTH];
@@ -108,6 +106,7 @@ COMMANDS_TYPE currCommand = COMMANDS_TYPE::TURNOFF_RADIO;
 int currMeteoParamExternal;
 int currMeteoParamInternal;
 float currNumOutPacket;
+bool sdCardInitialized;
 
 void setup()
 {
@@ -115,6 +114,9 @@ void setup()
   currNumOutPacket = 0;
   currMeteoParamExternal = 1;
   currMeteoParamInternal = 1;
+  sdCardInitialized = false;
+  pinMode(RADIO_CSN_PIN, OUTPUT);
+  pinMode(SD_CARD_CSN_PIN, OUTPUT);
 
   if(!dataPacketExternal){
     dataPacketExternal = new float*[COUNT_SEGMENTS_IN_PACKET];
@@ -132,12 +134,15 @@ void setup()
   
   startDisplay();
   startRadio();
+  startSdCard();
 
   delay(SETUP_DELAY);
 }
 
 void startRadio()
 {
+  activateRadio(); //Переключаем SPI на работу с радиомодулем
+
   radio.begin();
   radio.setChannel(RADIO_CHANNEL_NUMBER);
   radio.setDataRate(RF24_1MBPS);
@@ -147,7 +152,9 @@ void startRadio()
   radio.startListening();
 }
 
-void loop(){
+void loop()
+{
+  activateRadio(); //Переключаем SPI на работу с радиомодулем
   if(radio.available())
   {
     processIncomingData();
@@ -164,16 +171,104 @@ void loop(){
   delay(LOOP_DELAY_MSEC);
 }
 
-void startCardSD()
+void startSdCard()
 {
-  //TODO
+  activateSdCard();
+  if(!SD.begin(SD_CARD_CSN_PIN)) {
+    Serial.println("Initialization SD card failed");
+    return;
+  }
+
+  sdCardInitialized = true;
 }
 
 void startRTC()
 {
-  //Запросить время из потока ввода, если возможно. Иначе продолжить работу как есть
-  //Если поток ввода доступен, также можно с помощью ввода команды продолжить запуск как есть и попросить вывести текущее время
-  //TODO
+  //Запросить время из потока ввода, если возможно. Иначе продолжить работу как есть 
+  if(!Serial){
+    return;
+  }
+
+  Serial.println("----- MeteoStation -----");
+  Serial.println("Press <E> and actual date and time in format dd.MM.yyyy.hh.mm.ss for update");
+  Serial.println("Press <R> for start work station");
+  Serial.println("Press <P> for print station date and time");
+  Serial.println("Wait user input...");
+
+  //Если поток ввода доступен, также можно с помощью ввода команды ввести новое время, продолжить запуск как есть или попросить вывести текущее время
+  while(true){
+    if(Serial.available()){
+      String userInput = Serial.readString();
+      userInput.trim();
+      const char firstCharUserLine = userInput[0];
+
+      switch(firstCharUserLine){
+        case 'E':
+        {
+          if(!checkCorrectDateTimeFormat(userInput)){
+            Serial.println("Format dateTime was incorrect! Input command and dateTime again!");
+            continue;
+          }
+
+          const int8_t seconds = userInput.substring(19, 21).toInt();
+          const int8_t minutes = userInput.substring(16, 18).toInt();
+          const int8_t hours = userInput.substring(13, 15).toInt();
+          const int8_t days = userInput.substring(2, 4).toInt();
+          const int8_t month = userInput.substring(5, 7).toInt();
+          const int16_t year = userInput.substring(8, 12).toInt();
+
+          if((seconds > 59 || minutes > 59 || hours > 23)
+          || (days > 31 || month > 12 || year > 2099)){
+            Serial.println("Part's value of dateTime was incorrect! Input command and dateTime again!");
+            continue;
+          }
+
+          rtc.setTime(seconds, minutes, hours, days, month, year);
+          break;
+        }
+        case 'R':
+          if(userInput.length() == 1){
+            Serial.println("Station is starting...");
+          }else{
+            printErrorCommandMessage();
+          }
+          return;
+        case 'P':
+          if(userInput.length() == 1){
+            Serial.println("Current Date and Time: " + getCurrDateTime());
+          }else{
+            printErrorCommandMessage();
+          }
+          break;
+        default:
+          printErrorCommandMessage();
+          break;
+      }
+    }
+
+    delay(LOOP_DELAY_MSEC);
+  }
+}
+
+void printErrorCommandMessage(){
+  Serial.println("Incorrect command! ");
+  Serial.println("Press <E> and actual date and time in format dd.MM.yyyy.hh.mm.ss for update");
+  Serial.println("Press <R> for start work station");
+  Serial.println("Press <P> for print station date and time");
+}
+
+bool checkCorrectDateTimeFormat(String dateTime){
+  //dd.MM.yyyy.hh.mm.ss
+  if(dateTime[0] != ' ') return false;
+  if(dateTime[4] != '.' || dateTime[7] != '.' || dateTime[12] != '.' || dateTime[15] != '.' || dateTime[18] != '.') return false;
+  if(!isDigit(dateTime[2]) || !isDigit(dateTime[3])) return false;
+  if(!isDigit(dateTime[5]) || !isDigit(dateTime[6])) return false;
+  if(!isDigit(dateTime[8]) || !isDigit(dateTime[9]) || !isDigit(dateTime[10]) || !isDigit(dateTime[11])) return false;
+  if(!isDigit(dateTime[13]) || !isDigit(dateTime[14])) return false;
+  if(!isDigit(dateTime[16]) || !isDigit(dateTime[17])) return false;
+  if(!isDigit(dateTime[19]) || !isDigit(dateTime[20])) return false;
+
+  return true;
 }
 
 void changeWorkMode()
@@ -218,6 +313,12 @@ void processIncomingData()
     Serial.println("!!Packet is Corrupted!!");
     resetCurrIncomingPacket(); //Пакет поврежден - очищаем буфер, в который он был записан
   }
+}
+
+void sendActionPacket(float* actionPacket)
+{
+  activateRadio();
+  //TODDO
 }
 
 bool analyzeIncomingPacket(float* packet)
@@ -348,13 +449,13 @@ void resetIncomingDataBuffers()
   resetServiceBuffer(EXTERNAL_MODULE_ID);
 }
 
-void generateActionPacket(COMMANDS_TYPE commandId, float* actionPacket)
+void fillActionPacket(COMMANDS_TYPE commandId, float* actionPacket)
 {
   actionPacket[0] = currDisplayedModuleId;
   actionPacket[1] = MODULE_ID::CENTRAL_MODULE_ID;
   actionPacket[2] = TYPE_PACKET::CONTROL;
   actionPacket[3] = commandId;
-  actionPacket[4] = -1; //К сожалению, придумать адекватный способ задавать параметр команде придумать не удалось.
+  actionPacket[4] = -1; //К сожалению, придумать адекватный способ задавать параметр команде не удалось.
   actionPacket[5] = currNumOutPacket;
   actionPacket[6] = -1;
   actionPacket[7] = calcCheckSum(actionPacket, DATA_SEGMENT_LENGTH);
