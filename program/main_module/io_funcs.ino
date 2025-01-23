@@ -67,35 +67,35 @@ void buttonsHandler()
 void topRightButtonHandler()
 {
   //Данные назад / команда назад
-
+  Serial.println("TopRight press");
 
 }
 
 void bottomRightButtonHandler()
 {
   //Данные вперед / команда вперед
-
+  Serial.println("BottomRight press");
 
 }
 
 void centerButtonHandler()
 {
   //Смена модуля
-
+  Serial.println("Center press");
 
 }
 
 void topLeftButtonHandler()
 {
   //Войти-выйти в режим управления
-
+  Serial.println("TopLeft press");
 
 }
 
 void bottomLeftButtonHandler()
 {
   //Формат отображения значений / Отправить команду
-
+  Serial.println("BottomLeft press");
 
 }
 

@@ -252,35 +252,36 @@ void saveIncomingData(float* packet)
     resetCurrIncomingPacket();
   }
 
-  if(currPacketType == TYPE_PACKET::DATA){
+  switch(currPacketType){
+    case TYPE_PACKET::DATA:{
       float** dataPacket = getMeteoDataPacket(currPacketModuleId);
       memmove(dataPacket[static_cast<int>(packet[6])], packet, DATA_SEGMENT_LENGTH_B);
-    }else if(currPacketType == TYPE_PACKET::SERVICE){
+    }
+    case TYPE_PACKET::SERVICE:{
       float* servicePacket = getServicePacket(currPacketModuleId);
       memmove(servicePacket, packet, DATA_SEGMENT_LENGTH_B);
     }
+  }
 }
 
 //Проверяем целостность сохраненных данных, вычисляя контрольную сумму
 bool checkIncomingDataIntegrity()
 {
-  if(currPacketModuleId == MODULE_ID::INTERNAL_MODULE_ID){
-    if(currPacketType == TYPE_PACKET::DATA){
-      const float checkSum = calcFullCheckSum(dataPacketInternal, DATA_SEGMENT_LENGTH);
-      return (checkSum == dataPacketInternal[0][7] && checkSum == dataPacketInternal[1][7] && checkSum == dataPacketInternal[2][7]);
-    }else if(currPacketType == TYPE_PACKET::SERVICE){
-      return calcCheckSum(servicePacketInternal, DATA_SEGMENT_LENGTH) == servicePacketInternal[7];
+  switch(currPacketType){
+    case TYPE_PACKET::DATA:
+    {
+      float** dataPacket = getMeteoDataPacket(currPacketModuleId);
+      const float checkSum = calcFullCheckSum(dataPacket, DATA_SEGMENT_LENGTH);
+      return (checkSum == dataPacket[0][7] && checkSum == dataPacket[1][7] && checkSum == dataPacket[2][7]);
     }
-  }else if(currPacketModuleId == MODULE_ID::EXTERNAL_MODULE_ID){
-    if(currPacketType == TYPE_PACKET::DATA){
-      const float checkSum = calcFullCheckSum(dataPacketExternal, DATA_SEGMENT_LENGTH);
-      return (checkSum == dataPacketExternal[0][7] && checkSum == dataPacketExternal[1][7] && checkSum == dataPacketExternal[2][7]);
-    }else if(currPacketType == TYPE_PACKET::SERVICE){
-      return calcCheckSum(servicePacketExternal, DATA_SEGMENT_LENGTH) == servicePacketExternal[7];
+    case TYPE_PACKET::SERVICE:
+    {
+      float* servicePacket = getServicePacket(currPacketModuleId);
+      return calcCheckSum(servicePacket, DATA_SEGMENT_LENGTH) == servicePacket[7];
     }
+    default:
+      return false;
   }
-
-  return false;
 }
 
 bool isCompleteDataPacket(MODULE_ID moduleId)
@@ -289,7 +290,7 @@ bool isCompleteDataPacket(MODULE_ID moduleId)
   if(!dataPacket) 
     return false;
 
-  return dataPacketInternal[0][6] == 0 && dataPacketInternal[0][6] == 1 && dataPacketInternal[0][6] == 2;
+  return dataPacket[0][6] == 0 && dataPacket[0][6] == 1 && dataPacket[0][6] == 2;
 }
 
 void resetCurrIncomingPacket()
