@@ -321,43 +321,43 @@ void fillDataPacket(float** dataArray){
   dataArray[2][3] = -1;
   dataArray[2][4] = -1;
 
-   if(detectorMap[0]){
-     dataArray[0][3] = getTemperatureValue();
-   }
+  if(detectorMap[0]){
+    dataArray[0][3] = getTemperatureValue();
+  }
 
-   if(detectorMap[1]){
-     dataArray[0][4] = getHumidityValue();
-   }
+  if(detectorMap[1]){
+    dataArray[0][4] = getHumidityValue();
+  }
 
-   if(detectorMap[2]){
-     dataArray[1][3] = getRainValue();
-   }
+  if(detectorMap[2]){
+    dataArray[1][3] = getRainValue();
+  }
 
-   if(detectorMap[3]){
-     dataArray[1][4] = getPressureValue();
-   }
+  if(detectorMap[3]){
+    dataArray[1][4] = getPressureValue();
+  }
 
-   if(detectorMap[4]){
-     dataArray[2][3] = getSolarValue();
-   }
+  if(detectorMap[4]){
+    dataArray[2][3] = getSolarValue();
+  }
 
-   if(detectorMap[5]){
-     dataArray[2][4] = getUVValue();
-   }
+  if(detectorMap[5]){
+    dataArray[2][4] = getUVValue();
+  }
 
-   dataArray[0][5] = numberPacket;
-   dataArray[1][5] = numberPacket;
-   dataArray[2][5] = numberPacket;
+  dataArray[0][5] = numberPacket;
+  dataArray[1][5] = numberPacket;
+  dataArray[2][5] = numberPacket;
 
-   dataArray[0][6] = 0;
-   dataArray[1][6] = 1;
-   dataArray[2][6] = 2;
+  dataArray[0][6] = 0;
+  dataArray[1][6] = 1;
+  dataArray[2][6] = 2;
 
-   float resCkSum = calcFullCheckSum(dataArray, DATA_SEGMENT_LENGTH);
+  float resCkSum = calcFullCheckSum(dataArray, DATA_SEGMENT_LENGTH);
 
-   dataArray[0][7] = resCkSum;
-   dataArray[1][7] = resCkSum;
-   dataArray[2][7] = resCkSum;
+  dataArray[0][7] = resCkSum;
+  dataArray[1][7] = resCkSum;
+  dataArray[2][7] = resCkSum;
   
   if(numberPacket < 1000000000){
     numberPacket++;
