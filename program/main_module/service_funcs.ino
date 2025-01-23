@@ -5,8 +5,8 @@ float normalize(int value){
 }
 
 float calcCheckSum(float* data, int sizeData){
-  float sum=0;
-  for(int i=0;i<sizeData-1;i++){
+  float sum = 0;
+  for(int i = 0; i < sizeData - 1; i++){
     sum += data[i]; //Можно считать с дробями т.к. на обоих модулях алгоритм подсчета одинаков и числа должны совпасть
   }
   return sum;   

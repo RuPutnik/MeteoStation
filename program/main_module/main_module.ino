@@ -105,12 +105,16 @@ MODULE_ID currDisplayedModuleId = MODULE_ID::INTERNAL_MODULE_ID;
 WORK_MODE currWorkMode  = WORK_MODE::SHOW_METEO_DATA;
 SHOW_DATA_MODE currShowDataMode = SHOW_DATA_MODE::CLASSIC;
 COMMANDS_TYPE currCommand = COMMANDS_TYPE::TURNOFF_RADIO;
-int currMeteoParamExternal = 1;
-int currMeteoParamInternal = 1;
+int currMeteoParamExternal;
+int currMeteoParamInternal;
+float currNumOutPacket;
 
 void setup()
 {
   Serial.begin(SERIAL_SPEED);
+  currNumOutPacket = 0;
+  currMeteoParamExternal = 1;
+  currMeteoParamInternal = 1;
 
   if(!dataPacketExternal){
     dataPacketExternal = new float*[COUNT_SEGMENTS_IN_PACKET];
@@ -256,11 +260,15 @@ void saveIncomingData(float* packet)
     case TYPE_PACKET::DATA:{
       float** dataPacket = getMeteoDataPacket(currPacketModuleId);
       memmove(dataPacket[static_cast<int>(packet[6])], packet, DATA_SEGMENT_LENGTH_B);
+      break;
     }
     case TYPE_PACKET::SERVICE:{
       float* servicePacket = getServicePacket(currPacketModuleId);
       memmove(servicePacket, packet, DATA_SEGMENT_LENGTH_B);
+      break;
     }
+    default:
+      break;
   }
 }
 
@@ -342,5 +350,18 @@ void resetIncomingDataBuffers()
 
 void generateActionPacket(COMMANDS_TYPE commandId, float* actionPacket)
 {
+  actionPacket[0] = currDisplayedModuleId;
+  actionPacket[1] = MODULE_ID::CENTRAL_MODULE_ID;
+  actionPacket[2] = TYPE_PACKET::CONTROL;
+  actionPacket[3] = commandId;
+  actionPacket[4] = -1; //К сожалению, придумать адекватный способ задавать параметр команде придумать не удалось.
+  actionPacket[5] = currNumOutPacket;
+  actionPacket[6] = -1;
+  actionPacket[7] = calcCheckSum(actionPacket, DATA_SEGMENT_LENGTH);
 
+  if(currNumOutPacket < 1000000000){
+    currNumOutPacket++;
+  }else{
+    currNumOutPacket = 0;
+  }
 }
