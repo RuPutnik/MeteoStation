@@ -26,9 +26,11 @@ void debugSavedIncomingPacket()
   }
 
   if(currPacketType == TYPE_PACKET::DATA){
-    debugDataPacket(dataPacketInternal);
+    float** dataPacket = getMeteoDataPacket(currPacketModuleId);
+    debugDataPacket(dataPacket);
   }else if(currPacketType == TYPE_PACKET::SERVICE){
-    debugServicePacket(servicePacketInternal);
+    float* servicePacket = getServicePacket(currPacketModuleId);
+    debugServicePacket(servicePacket);
   }
 }
 
@@ -53,7 +55,8 @@ void debugServicePacket(float* packet){
 void debugActionPacket(float* packet){
   Serial.println("=== ACTION PACKET ===");
   for(int j = 0; j < DATA_SEGMENT_LENGTH; j++){
-      Serial.print(packet[j] + (String)" | ");
+      Serial.print(packet[j]);
+      Serial.print(" | ");
   }
   Serial.print("\n");
 }

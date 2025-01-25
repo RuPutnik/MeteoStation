@@ -18,29 +18,32 @@
 #define DATA_SEGMENT_LENGTH_B      DATA_SEGMENT_LENGTH * sizeof(float)  //32
 #define COUNT_SEGMENTS_IN_PACKET   3
 
-#define RADIO_CE_PIN           8
-#define RADIO_CSN_PIN          9
-#define LCD2004_ADDRESS        0x3F
-#define COUNT_KEYS             5
-#define SD_CARD_CSN_PIN        10
+#define RADIO_CE_PIN               8
+#define RADIO_CSN_PIN              9
+#define LCD2004_ADDRESS            0x3F
+#define COUNT_KEYS                 5
+#define SD_CARD_CSN_PIN            10
 
-#define LOG_FILENAME          "MeteoData.log"
+#define LOG_FILENAME               "MeteoData.log"
 
-enum MODULE_ID{
+enum MODULE_ID: char
+{
   CENTRAL_MODULE_ID     = 0,
   INTERNAL_MODULE_ID    = 1,
   EXTERNAL_MODULE_ID    = 2,
   INCORRECT_MODULE_ID   = 3
 };
 
-enum TYPE_PACKET{
+enum TYPE_PACKET: char
+{
   DATA    = 1,
   CONTROL = 2,
   SERVICE = 3,
   UNKNOWN = 4
 };
 
-enum COMMANDS_TYPE{
+enum COMMANDS_TYPE: char
+{
   RESTART_ALL          = 1,
   TURNOFF_RADIO        = 2,
   CHANGE_SEND_INTERVAL = 3,
@@ -52,7 +55,8 @@ enum COMMANDS_TYPE{
   HEARTBEAT            = 9
 };
 
-enum SERVICE_MSG_TYPE{
+enum SERVICE_MSG_TYPE: char
+{
   START_MODULE_SUCCESS = 1,
   SUCCESS_GET_COMMAND  = 2,
   ERROR_START_DETECTOR = 3,
@@ -62,25 +66,29 @@ enum SERVICE_MSG_TYPE{
   GET_ERROR_COMMAND    = 7
 };
 
-enum WORK_MODE{
+enum WORK_MODE: char
+{
   SHOW_METEO_DATA = 0,
   SHOW_COMMANDS   = 1
 };
 
-enum SHOW_DATA_MODE{
+enum SHOW_DATA_MODE: char
+{
   CLASSIC       = 0,
   ALTERNATIVE   = 1
 };
 
-enum KEY_PORT{
-  KEY_1   = 4, //top left
-  KEY_2   = 3, //bottom left
-  KEY_3   = 5, //center
-  KEY_4   = 7, //top right
-  KEY_5   = 6  //bottom right
+enum KEY_PORT: char
+{
+  KEY_1   = 4, //center
+  KEY_2   = 3, //topleft
+  KEY_3   = 5, //bottomRight
+  KEY_4   = 2, //bottomLeft
+  KEY_5   = 6  //topRight
 };
 
-enum LOG_MSG_TYPE{
+enum LOG_MSG_TYPE: char
+{
   METEODATA = 0,
   INFO      = 1,
   ERROR     = 2
@@ -103,14 +111,15 @@ MODULE_ID currDisplayedModuleId = MODULE_ID::INTERNAL_MODULE_ID;
 WORK_MODE currWorkMode  = WORK_MODE::SHOW_METEO_DATA;
 SHOW_DATA_MODE currShowDataMode = SHOW_DATA_MODE::CLASSIC;
 COMMANDS_TYPE currCommand = COMMANDS_TYPE::TURNOFF_RADIO;
-int currMeteoParamExternal;
-int currMeteoParamInternal;
+short currMeteoParamExternal;
+short currMeteoParamInternal;
 float currNumOutPacket;
 bool sdCardInitialized;
 
 void setup()
 {
   Serial.begin(SERIAL_SPEED);
+  //rtc.setTime(31, 32, 21, 25, 1, 2025);
   currNumOutPacket = 0;
   currMeteoParamExternal = 1;
   currMeteoParamInternal = 1;
@@ -136,6 +145,9 @@ void setup()
   startRadio();
   startSdCard();
   initializeButtons();
+
+  fillActionPacket(COMMANDS_TYPE::RESTART_ALL, actionPacket);
+  debugActionPacket(actionPacket);
 
   delay(SETUP_DELAY);
 }
@@ -172,7 +184,7 @@ void loop()
   //TODO Тут анализ нажатий клавиш на блоке, отправка управляющих пакетов и отображение полученных данных на дисплее
   //TODO Реализовать: функцию логгирования на сд карту и в сом порт. Реализовать функции получения значений параметров в виде строки. Реализовать функции переключения режима кнопок и текущего модуля
   //TODO Реализовать функции обработки нажатий на кнопки
-
+  buttonsHandler();
   delay(LOOP_DELAY_MSEC);
 }
 
@@ -186,7 +198,7 @@ void startSdCard()
 
   sdCardInitialized = true;
 }
-
+/*
 void startRTC()
 {
   //Запросить время из потока ввода, если возможно. Иначе продолжить работу как есть 
@@ -202,25 +214,32 @@ void startRTC()
 
   //Если поток ввода доступен, также можно с помощью ввода команды ввести новое время, продолжить запуск как есть или попросить вывести текущее время
   while(true){
-    if(Serial.available()){
-      String userInput = Serial.readString();
-      userInput.trim();
-      const char firstCharUserLine = userInput[0];
+    const int amountAvailable = Serial.available();
+    if(amountAvailable > 0){
+      char currChar = Serial.read();
+      int currIndex = 0;
+      char userInput[amountAvailable];
+      while(currChar != '\n'){
+        userInput[currIndex] = currChar;
+        currIndex++;
+        currChar = Serial.read();
+      }
+      userInput[currIndex] = '\0';
 
-      switch(firstCharUserLine){
+      switch(userInput[0]){
         case 'E':
         {
           if(!checkCorrectDateTimeFormat(userInput)){
             Serial.println("Format dateTime was incorrect! Input command and dateTime again!");
             continue;
           }
-
-          const int8_t seconds = userInput.substring(19, 21).toInt();
-          const int8_t minutes = userInput.substring(16, 18).toInt();
-          const int8_t hours = userInput.substring(13, 15).toInt();
-          const int8_t days = userInput.substring(2, 4).toInt();
-          const int8_t month = userInput.substring(5, 7).toInt();
-          const int16_t year = userInput.substring(8, 12).toInt();
+        
+          const int8_t seconds = String{userInput}.substring(19, 21).toInt();
+          const int8_t minutes = String{userInput}.substring(16, 18).toInt();
+          const int8_t hours = String{userInput}.substring(13, 15).toInt();
+          const int8_t days = String{userInput}.substring(2, 4).toInt();
+          const int8_t month = String{userInput}.substring(5, 7).toInt();
+          const int16_t year = String{userInput}.substring(8, 12).toInt();
 
           if((seconds > 59 || minutes > 59 || hours > 23)
           || (days > 31 || month > 12 || year > 2099)){
@@ -232,21 +251,23 @@ void startRTC()
           break;
         }
         case 'R':
-          if(userInput.length() == 1){
+          if(currIndex == 1){
             Serial.println("Station is starting...");
+            return;
           }else{
-            printErrorCommandMessage();
+            printErrorCommandMessage(userInput);
           }
-          return;
+          break;
         case 'P':
-          if(userInput.length() == 1){
-            Serial.println("Current Date and Time: " + getCurrDateTime());
+          if(currIndex == 1){
+            Serial.println("Current Date and Time: ");
+            Serial.println(getCurrDateTime());
           }else{
-            printErrorCommandMessage();
+            printErrorCommandMessage(userInput);
           }
           break;
         default:
-          printErrorCommandMessage();
+          printErrorCommandMessage(userInput);
           break;
       }
     }
@@ -255,16 +276,17 @@ void startRTC()
   }
 }
 
-void printErrorCommandMessage(){
-  Serial.println("Incorrect command! ");
+void printErrorCommandMessage(char* command){
+  Serial.println("Command is invalid: ");
+  Serial.println(command);
   Serial.println("Press <E> and actual date and time in format dd.MM.yyyy.hh.mm.ss for update");
   Serial.println("Press <R> for start work station");
   Serial.println("Press <P> for print station date and time");
 }
 
-bool checkCorrectDateTimeFormat(String dateTime){
+bool checkCorrectDateTimeFormat(char* dateTime){
   //dd.MM.yyyy.hh.mm.ss
-  if(dateTime[0] != ' ') return false;
+  if(dateTime[1] != ' ') return false;
   if(dateTime[4] != '.' || dateTime[7] != '.' || dateTime[12] != '.' || dateTime[15] != '.' || dateTime[18] != '.') return false;
   if(!isDigit(dateTime[2]) || !isDigit(dateTime[3])) return false;
   if(!isDigit(dateTime[5]) || !isDigit(dateTime[6])) return false;
@@ -275,7 +297,7 @@ bool checkCorrectDateTimeFormat(String dateTime){
 
   return true;
 }
-
+*/
 void changeWorkMode()
 {
   if(currWorkMode == WORK_MODE::SHOW_METEO_DATA){
@@ -323,7 +345,7 @@ void processIncomingData()
 void sendActionPacket(float* actionPacket)
 {
   activateRadio();
-  //TODDO
+  //TODO Реализазовать механизм подтверждения получения управляющего пакета (и, при необходимости, ответного пакета с данными)
 }
 
 bool analyzeIncomingPacket(float* packet)

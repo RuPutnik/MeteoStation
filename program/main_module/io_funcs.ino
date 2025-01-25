@@ -6,16 +6,19 @@ void startDisplay()
   lcd.backlight(); //Включаем подсветку LCD дисплея
   lcd.setCursor(0, 0);
   lcd.print("--------------------");
-  lcd.setCursor(0, 1); 
-  lcd.print("Метеостанция");                
-  lcd.setCursor(0, 2);
-  lcd.print("Выполняется запуск.."); 
+  lcd.setCursor(4, 1);
+  lcd.print("MeteoStation");
+  lcd.setCursor(3, 2);
+  lcd.print("Starting up...");
   lcd.setCursor(0, 3);
   lcd.print("--------------------");
 }
 
 void updateDisplay()
 {
+  lcd.setCursor(0, 3);
+  lcd.print(getCurrDateTime());
+  Serial.println(getCurrDateTime());
   //Анализировать тек.модуль, режим работы, текущую команду/метеопараметр
 }
 
@@ -44,11 +47,11 @@ void initializeButtons()
   pinMode(KEY_4, INPUT);
   pinMode(KEY_5, INPUT);
 
-  addButtonHandler(KEY_1, topLeftButtonHandler);
-  addButtonHandler(KEY_2, bottomLeftButtonHandler);
-  addButtonHandler(KEY_3, centerButtonHandler);
-  addButtonHandler(KEY_4, topRightButtonHandler);
-  addButtonHandler(KEY_5, bottomRightButtonHandler);
+  addButtonHandler(KEY_1, centerButtonHandler);
+  addButtonHandler(KEY_2, topLeftButtonHandler);
+  addButtonHandler(KEY_3, bottomRightButtonHandler);
+  addButtonHandler(KEY_4, bottomLeftButtonHandler);
+  addButtonHandler(KEY_5, topRightButtonHandler);
 }
 
 void buttonsHandler()
@@ -140,18 +143,18 @@ String formPressureMsg()
     if(currShowDataMode == SHOW_DATA_MODE::CLASSIC)
     {
       pressureValue = pressureValue / 133.3;
-      scaleName = "млм рт.ст.";
+      scaleName = " mmHg";
     }
     else
     {
-      scaleName = "Па";
+      scaleName = " Pa";
     }
 
-    return "P = " + static_cast<String>(pressureValue) + scaleName;
+    return "Pressure = " + static_cast<String>(pressureValue) + scaleName;
   }
   else
   {
-    return "P = <?>";
+    return "Pressure = <?>";
   }
 }
 
@@ -170,10 +173,10 @@ String formHumidityMsg()
   }
   else
   {
-    return "Отн. влажн. = <?>";
+    return "Relative wet = <?>";
   }
 
-  return "Отн. влажн. = " + static_cast<String>(humidityValue) + "%";
+  return "Relative wet = " + static_cast<String>(humidityValue) + "%";
 }
 
 String formSolarMsg()
@@ -190,14 +193,14 @@ String formSolarMsg()
     }
     else
     {
-      scaleName = " Абс.";
+      scaleName = " Abs.";
     }
 
-    return "Освещ. = " + static_cast<String>(solarValue) + scaleName;
+    return "Light = " + static_cast<String>(solarValue) + scaleName;
   }
   else
   {
-    return "Освещ. = <?>";
+    return "Light = <?>";
   }
 }
 
@@ -211,18 +214,18 @@ String formUVMsg()
     if(currShowDataMode == SHOW_DATA_MODE::CLASSIC)
     {
       uvValue = uvValue / 20.5;
-      scaleName = " Инд."; //В результате данных преобразований получаем индекс УФ излучения в диапазоне 0..10
+      scaleName = " Unit"; //В результате данных преобразований получаем индекс УФ излучения в диапазоне 0..10
     }
     else
     {
-      scaleName = " Абс.";
+      scaleName = " Abs.";
     }
 
-    return "УФ = " + static_cast<String>(uvValue) + scaleName;
+    return "UV = " + static_cast<String>(uvValue) + scaleName;
   }
   else
   {
-    return "УФ = <?>";
+    return "UV = <?>";
   }
 }
 
@@ -240,14 +243,14 @@ String formRainMsg()
     }
     else
     {
-      scaleName = " Абс.";
+      scaleName = " Abs.";
     }
 
-    return "Дождь = " + static_cast<String>(rainValue) + scaleName;
+    return "Rain = " + static_cast<String>(rainValue) + scaleName;
   }
   else
   {
-    return "Дождь = <?>";
+    return "Rain = <?>";
   }
 }
 
@@ -265,14 +268,14 @@ String formMicrophoneMsg()
     }
     else
     {
-      scaleName = " Абс.";
+      scaleName = " Abs.";
     }
 
-    return "Звук = " + static_cast<String>(microphoneValue) + scaleName;
+    return "Sound = " + static_cast<String>(microphoneValue) + scaleName;
   }
   else
   {
-    return "Звук = <?>";
+    return "Sound = <?>";
   }
 }
 
@@ -283,11 +286,11 @@ String formMQ135Msg()
   {
     float carbonDioxideValue = dataPacketInternal[1][3];
 
-    return "Углек.газ = " + static_cast<String>(carbonDioxideValue) + "PPM";
+    return "CO2 = " + static_cast<String>(carbonDioxideValue) + " ppm";
   }
   else
   {
-    return "Углек.газ = <?>";
+    return "CO2 = <?>";
   }
 }
 
@@ -295,33 +298,33 @@ String formCommandMsg(COMMANDS_TYPE commandId)
 {
   switch(commandId){
     case RESTART_ALL:
-      return "  Перезапустить все";
+      return "  Restart module";
     case TURNOFF_RADIO:
-      return "  Выключить радио";
+      return "  Disable radio";
     case CHANGE_SEND_INTERVAL:
-      return "  Изм.интер.отправ.";
+      return "  Change send interv";
     case STOP_SEND_DATA:
-      return "  Прекр. отправку";
+      return "  Stop sending";
     case RESUME_SEND_DATA:
-      return "  Продолж. отправку";
+      return "  Resume sending";
     case GET_DETECTOR_MAP:
-      return "  Получить карту";
+      return "  Get detector map";
     case GET_TIME_INTERVAL:
-      return "  Получить интерв.";
+      return "  Get send interv";
     case GET_LIFE_TIME:
-      return "  Получ. время жизни";
+      return "  Get lifetime";
     case HEARTBEAT:
-      return "  Пинг";
+      return "  Ping";
     default:
       return "  Команда <?>";  
   }
 }
 
-String getCurrDateTime()
+char* getCurrDateTime()
 {
   char time[8];
   char date[10];
-  char dateTime[17];
+  static char dateTime[17];
 
   memset(dateTime, 0, 17);
 
@@ -334,7 +337,7 @@ String getCurrDateTime()
   dateTime[8] = ' ';
   strcpy(dateTime + 9, time);
 
-  return String{dateTime};
+  return dateTime;
 }
 
 void sendDataToCard(String msg){
