@@ -295,25 +295,25 @@ String formCommandMsg(COMMANDS_TYPE commandId)
 {
   switch(commandId){
     case RESTART_ALL:
-      return "Перезапустить все";
+      return "  Перезапустить все";
     case TURNOFF_RADIO:
-      return "Выключить радио";
+      return "  Выключить радио";
     case CHANGE_SEND_INTERVAL:
-      return "Изм.интер.отправ.";
+      return "  Изм.интер.отправ.";
     case STOP_SEND_DATA:
-      return "Прекр. отправку";
+      return "  Прекр. отправку";
     case RESUME_SEND_DATA:
-      return "Продолж. отправку";
+      return "  Продолж. отправку";
     case GET_DETECTOR_MAP:
-      return "Получить карту";
+      return "  Получить карту";
     case GET_TIME_INTERVAL:
-      return "Получить интерв.";
+      return "  Получить интерв.";
     case GET_LIFE_TIME:
-      return "Получ. время жизни";
+      return "  Получ. время жизни";
     case HEARTBEAT:
-      return "Пинг";
+      return "  Пинг";
     default:
-      return "Команда <?>";  
+      return "  Команда <?>";  
   }
 }
 

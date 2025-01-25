@@ -135,6 +135,7 @@ void setup()
   startDisplay();
   startRadio();
   startSdCard();
+  initializeButtons();
 
   delay(SETUP_DELAY);
 }
@@ -158,6 +159,10 @@ void loop()
   if(radio.available())
   {
     processIncomingData();
+
+    if(isCompleteDataPacket(currDisplayedModuleId)){
+      updateDisplay();
+    }
   }
 
   //TODO Использование полученных и проверенных данных
