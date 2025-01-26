@@ -324,68 +324,18 @@ char* getCurrDateTime()
 {
   char time[8];
   char date[10];
-  static char dateTime[17];
+  static char currDateTime[18];
 
-  memset(dateTime, 0, 17);
+  memset(currDateTime, 0, 18);
 
   rtc.getTimeChar(time);
   rtc.getDateChar(date);
 
-  strncpy(dateTime, date, 6);
-  dateTime[6] = date[8]; //Берем 2 последние цифры года
-  dateTime[7] = date[9];
-  dateTime[8] = ' ';
-  strcpy(dateTime + 9, time);
+  strncpy(currDateTime, date, 6);
+  currDateTime[6] = date[8]; //Берем 2 последние цифры года
+  currDateTime[7] = date[9];
+  currDateTime[8] = ' ';
+  strcpy(currDateTime + 9, time);
 
-  return dateTime;
-}
-
-void sendDataToCard(String msg){
-  sendMsgToCard(LOG_MSG_TYPE::METEODATA, msg);
-}
-
-void sendInfoToCard(String msg){
-  sendMsgToCard(LOG_MSG_TYPE::INFO, msg);
-}
-
-void sendErrorToCard(String msg){
-  sendMsgToCard(LOG_MSG_TYPE::ERROR, msg);
-}
-
-void sendMsgToCard(LOG_MSG_TYPE typeMsg, String msg)
-{
-  if(!sdCardInitialized){
-    return;
-  }
-  activateSdCard(); //Переключаем SPI на работу с Sd картой
-
-  File logFile = SD.open(LOG_FILENAME);
-
-  if(!logFile){
-    logFile = SD.open(LOG_FILENAME, FILE_WRITE);
-    if(!logFile){
-      Serial.println("Error creation log file!");
-      return;
-    }
-  }
-
-  String prefixMsg;
-
-  switch(typeMsg){
-    case LOG_MSG_TYPE::METEODATA:
-      prefixMsg = "[Данные] ";
-    break;
-    case LOG_MSG_TYPE::INFO:
-      prefixMsg = "[Инфо] ";
-    break;
-    case LOG_MSG_TYPE::ERROR:
-      prefixMsg = "[Ошибка] ";
-    break;
-    default:
-      prefixMsg = "[?] ";
-    break;
-  }
-
-  logFile.println(prefixMsg + msg);
-  logFile.close();
+  return currDateTime;
 }

@@ -1,10 +1,7 @@
 #include <SPI.h>
 #include <RF24.h>
-#include <SD.h>
 #include <microDS3231.h>
 #include <LiquidCrystal_I2C.h>
-
-#include <string.h>
 
 #define LOOP_DELAY_MSEC            10
 #define KEY_POSTHANDLE_DELAY_MSEC  1000
@@ -22,9 +19,6 @@
 #define RADIO_CSN_PIN              9
 #define LCD2004_ADDRESS            0x3F
 #define COUNT_KEYS                 5
-#define SD_CARD_CSN_PIN            10
-
-#define LOG_FILENAME               "MeteoData.log"
 
 enum MODULE_ID: char
 {
@@ -114,7 +108,6 @@ COMMANDS_TYPE currCommand = COMMANDS_TYPE::TURNOFF_RADIO;
 short currMeteoParamExternal;
 short currMeteoParamInternal;
 float currNumOutPacket;
-bool sdCardInitialized;
 
 void setup()
 {
@@ -123,9 +116,6 @@ void setup()
   currNumOutPacket = 0;
   currMeteoParamExternal = 1;
   currMeteoParamInternal = 1;
-  sdCardInitialized = false;
-  pinMode(RADIO_CSN_PIN, OUTPUT);
-  pinMode(SD_CARD_CSN_PIN, OUTPUT);
 
   if(!dataPacketExternal){
     dataPacketExternal = new float*[COUNT_SEGMENTS_IN_PACKET];
@@ -143,19 +133,13 @@ void setup()
   
   startDisplay();
   startRadio();
-  startSdCard();
   initializeButtons();
-
-  fillActionPacket(COMMANDS_TYPE::RESTART_ALL, actionPacket);
-  debugActionPacket(actionPacket);
 
   delay(SETUP_DELAY);
 }
 
 void startRadio()
 {
-  activateRadio(); //Переключаем SPI на работу с радиомодулем
-
   radio.begin();
   radio.setChannel(RADIO_CHANNEL_NUMBER);
   radio.setDataRate(RF24_1MBPS);
@@ -167,7 +151,6 @@ void startRadio()
 
 void loop()
 {
-  activateRadio(); //Переключаем SPI на работу с радиомодулем
   if(radio.available())
   {
     processIncomingData();
@@ -179,125 +162,14 @@ void loop()
 
   //TODO Использование полученных и проверенных данных
   //TODO Здесь сырые данные должны переводиться в адекватные единицы
-  //TODO Не забыть о работе с модулем RTC и SD картой
   //TODO Сервисные пакеты удаляются после логгирования\обработки, пакеты с данными живут до получения нового пакета
   //TODO Тут анализ нажатий клавиш на блоке, отправка управляющих пакетов и отображение полученных данных на дисплее
-  //TODO Реализовать: функцию логгирования на сд карту и в сом порт. Реализовать функции получения значений параметров в виде строки. Реализовать функции переключения режима кнопок и текущего модуля
+  //TODO Реализовать функции получения значений параметров в виде строки. Реализовать функции переключения режима кнопок и текущего модуля
   //TODO Реализовать функции обработки нажатий на кнопки
   buttonsHandler();
   delay(LOOP_DELAY_MSEC);
 }
 
-void startSdCard()
-{
-  activateSdCard();
-  if(!SD.begin(SD_CARD_CSN_PIN)) {
-    Serial.println("Initialization SD card failed");
-    return;
-  }
-
-  sdCardInitialized = true;
-}
-/*
-void startRTC()
-{
-  //Запросить время из потока ввода, если возможно. Иначе продолжить работу как есть 
-  if(!Serial){
-    return;
-  }
-
-  Serial.println("----- MeteoStation -----");
-  Serial.println("Press <E> and actual date and time in format dd.MM.yyyy.hh.mm.ss for update");
-  Serial.println("Press <R> for start work station");
-  Serial.println("Press <P> for print station date and time");
-  Serial.println("Wait user input...");
-
-  //Если поток ввода доступен, также можно с помощью ввода команды ввести новое время, продолжить запуск как есть или попросить вывести текущее время
-  while(true){
-    const int amountAvailable = Serial.available();
-    if(amountAvailable > 0){
-      char currChar = Serial.read();
-      int currIndex = 0;
-      char userInput[amountAvailable];
-      while(currChar != '\n'){
-        userInput[currIndex] = currChar;
-        currIndex++;
-        currChar = Serial.read();
-      }
-      userInput[currIndex] = '\0';
-
-      switch(userInput[0]){
-        case 'E':
-        {
-          if(!checkCorrectDateTimeFormat(userInput)){
-            Serial.println("Format dateTime was incorrect! Input command and dateTime again!");
-            continue;
-          }
-        
-          const int8_t seconds = String{userInput}.substring(19, 21).toInt();
-          const int8_t minutes = String{userInput}.substring(16, 18).toInt();
-          const int8_t hours = String{userInput}.substring(13, 15).toInt();
-          const int8_t days = String{userInput}.substring(2, 4).toInt();
-          const int8_t month = String{userInput}.substring(5, 7).toInt();
-          const int16_t year = String{userInput}.substring(8, 12).toInt();
-
-          if((seconds > 59 || minutes > 59 || hours > 23)
-          || (days > 31 || month > 12 || year > 2099)){
-            Serial.println("Part's value of dateTime was incorrect! Input command and dateTime again!");
-            continue;
-          }
-
-          rtc.setTime(seconds, minutes, hours, days, month, year);
-          break;
-        }
-        case 'R':
-          if(currIndex == 1){
-            Serial.println("Station is starting...");
-            return;
-          }else{
-            printErrorCommandMessage(userInput);
-          }
-          break;
-        case 'P':
-          if(currIndex == 1){
-            Serial.println("Current Date and Time: ");
-            Serial.println(getCurrDateTime());
-          }else{
-            printErrorCommandMessage(userInput);
-          }
-          break;
-        default:
-          printErrorCommandMessage(userInput);
-          break;
-      }
-    }
-
-    delay(LOOP_DELAY_MSEC);
-  }
-}
-
-void printErrorCommandMessage(char* command){
-  Serial.println("Command is invalid: ");
-  Serial.println(command);
-  Serial.println("Press <E> and actual date and time in format dd.MM.yyyy.hh.mm.ss for update");
-  Serial.println("Press <R> for start work station");
-  Serial.println("Press <P> for print station date and time");
-}
-
-bool checkCorrectDateTimeFormat(char* dateTime){
-  //dd.MM.yyyy.hh.mm.ss
-  if(dateTime[1] != ' ') return false;
-  if(dateTime[4] != '.' || dateTime[7] != '.' || dateTime[12] != '.' || dateTime[15] != '.' || dateTime[18] != '.') return false;
-  if(!isDigit(dateTime[2]) || !isDigit(dateTime[3])) return false;
-  if(!isDigit(dateTime[5]) || !isDigit(dateTime[6])) return false;
-  if(!isDigit(dateTime[8]) || !isDigit(dateTime[9]) || !isDigit(dateTime[10]) || !isDigit(dateTime[11])) return false;
-  if(!isDigit(dateTime[13]) || !isDigit(dateTime[14])) return false;
-  if(!isDigit(dateTime[16]) || !isDigit(dateTime[17])) return false;
-  if(!isDigit(dateTime[19]) || !isDigit(dateTime[20])) return false;
-
-  return true;
-}
-*/
 void changeWorkMode()
 {
   if(currWorkMode == WORK_MODE::SHOW_METEO_DATA){
@@ -344,7 +216,6 @@ void processIncomingData()
 
 void sendActionPacket(float* actionPacket)
 {
-  activateRadio();
   //TODO Реализазовать механизм подтверждения получения управляющего пакета (и, при необходимости, ответного пакета с данными)
 }
 
