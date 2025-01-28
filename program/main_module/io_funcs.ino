@@ -320,13 +320,10 @@ String formCommandMsg(COMMANDS_TYPE commandId)
   }
 }
 
-char* getCurrDateTime()
+String getCurrDateTime()
 {
-  char time[8];
-  char date[10];
+  char time[9], date[11];
   static char currDateTime[18];
-
-  memset(currDateTime, 0, 18);
 
   rtc.getTimeChar(time);
   rtc.getDateChar(date);
@@ -337,5 +334,5 @@ char* getCurrDateTime()
   currDateTime[8] = ' ';
   strcpy(currDateTime + 9, time);
 
-  return currDateTime;
+  return String{currDateTime};
 }
