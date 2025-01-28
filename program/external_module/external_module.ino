@@ -1,6 +1,5 @@
 #include <Wire.h>
 #include <SPI.h>
-#include <nRF24L01.h>
 #include <RF24.h>
 #include <Adafruit_AHT10.h>
 #include <Adafruit_BMP280.h>
@@ -176,14 +175,18 @@ void analyzeIncomingPacket(float* packet){
 }
 
 void sendPacketData(float** packet){
+  radio.stopListening();
   radio.write(packet[0], DATA_SEGMENT_LENGTH_B);
   radio.write(packet[1], DATA_SEGMENT_LENGTH_B);
   radio.write(packet[2], DATA_SEGMENT_LENGTH_B);
+  radio.startListening();
 }
 
 void sendPacketService(float* packet){
   debugServicePacket(packet);
+  radio.stopListening();
   radio.write(packet, DATA_SEGMENT_LENGTH_B);
+  radio.startListening();
 }
 
 //Отправка квитанции о получении пакета управления (Отсылается перед выполнением какого-либо требуемого действия)
