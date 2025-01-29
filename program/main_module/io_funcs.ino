@@ -2,7 +2,7 @@
 
 void startDisplay()
 {
-  lcd.init(); //Инициируем работу с LCD дисплеем
+  lcd.init();
   lcd.backlight(); //Включаем подсветку LCD дисплея
   lcd.setCursor(0, 0);
   lcd.print("--------------------");
@@ -14,12 +14,48 @@ void startDisplay()
   lcd.print("--------------------");
 }
 
+void resetDisplay()
+{
+  lcd.clear();
+}
+
 void updateDisplay()
 {
-  lcd.setCursor(0, 3);
-  lcd.print(getCurrDateTime());
-  Serial.println(getCurrDateTime());
-  //Анализировать тек.модуль, режим работы, текущую команду/метеопараметр
+  updateDisplayHeader();
+  updateDisplayContent();
+}
+
+void updateDisplayHeader()
+{
+   lcd.setCursor(0, 0);
+   //lcd.print("")
+  // lcd.print(getCurrDateTime());
+  // Serial.println(getCurrDateTime());
+}
+
+void updateDisplayContent()
+{
+  if(currWorkMode == WORK_MODE::SHOW_METEO_DATA)
+  {
+    updateDisplayContentMeteodata();
+  }
+  else
+  {
+    updateDisplayContentCommands();
+  }
+}
+
+void updateDisplayContentMeteodata()
+{
+  //TODO
+}
+
+void updateDisplayContentCommands()
+{
+  lcd.setCursor(0, 2);
+  lcd.print(">");
+
+  //TODO
 }
 
 struct KeyBoundle
@@ -63,6 +99,10 @@ void buttonsHandler()
       updateDisplay();
       //Для предотвращения многократного срабатывания одной и той же кнопки при хотя бы небольшом зажатии
       delay(KEY_POSTHANDLE_DELAY_MSEC);
+    }
+    else
+    {
+      updateDisplayHeader();
     }
   }
 }
@@ -298,25 +338,25 @@ String formCommandMsg(COMMANDS_TYPE commandId)
 {
   switch(commandId){
     case RESTART_ALL:
-      return "  Restart module";
+      return "Restart module";
     case TURNOFF_RADIO:
-      return "  Disable radio";
+      return "Disable radio";
     case CHANGE_SEND_INTERVAL:
-      return "  Change send interv";
+      return "Change send interv";
     case STOP_SEND_DATA:
-      return "  Stop sending";
+      return "Stop sending";
     case RESUME_SEND_DATA:
-      return "  Resume sending";
+      return "Resume sending";
     case GET_DETECTOR_MAP:
-      return "  Get detector map";
+      return "Get detector map";
     case GET_TIME_INTERVAL:
-      return "  Get send interv";
+      return "Get send interv";
     case GET_LIFE_TIME:
-      return "  Get lifetime";
+      return "Get lifetime";
     case HEARTBEAT:
-      return "  Ping";
+      return "Ping";
     default:
-      return "  Команда <?>";  
+      return "Command <?>";  
   }
 }
 

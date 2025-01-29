@@ -1,7 +1,7 @@
 //Служебные функции
 
 float normalize(int value){
-  return value/1024.0;  
+  return value / 1024.0;  
 }
 
 float calcCheckSum(float* data, int sizeData){
@@ -14,7 +14,9 @@ float calcCheckSum(float* data, int sizeData){
 
 float calcFullCheckSum(float** dataArray, int sizeData)
 {
-  return calcCheckSum(dataArray[0], sizeData) + calcCheckSum(dataArray[1], sizeData) + calcCheckSum(dataArray[2], sizeData);
+  return calcCheckSum(dataArray[0], sizeData) + 
+         calcCheckSum(dataArray[1], sizeData) + 
+         calcCheckSum(dataArray[2], sizeData);
 }
 
 void debugSavedIncomingPacket()
@@ -72,7 +74,8 @@ void fillIncomingActionPacket(float* incomingPacket, int module_id, COMMANDS_TYP
   incomingPacket[7] = calcCheckSum(incomingPacket, DATA_SEGMENT_LENGTH);
 }
 
-float* getServicePacket(MODULE_ID moduleId){
+float* getServicePacket(MODULE_ID moduleId)
+{
   if(moduleId == MODULE_ID::INTERNAL_MODULE_ID)
   {
     return servicePacketInternal;
@@ -87,7 +90,8 @@ float* getServicePacket(MODULE_ID moduleId){
   }
 }
 
-float** getMeteoDataPacket(MODULE_ID moduleId){
+float** getMeteoDataPacket(MODULE_ID moduleId)
+{
   if(moduleId == MODULE_ID::INTERNAL_MODULE_ID)
   {
     return dataPacketInternal;

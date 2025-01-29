@@ -20,7 +20,7 @@
 #define LCD2004_ADDRESS            0x3F
 #define COUNT_KEYS                 5
 
-enum MODULE_ID: char
+enum MODULE_ID: uint8_t
 {
   CENTRAL_MODULE_ID     = 0,
   INTERNAL_MODULE_ID    = 1,
@@ -28,7 +28,7 @@ enum MODULE_ID: char
   INCORRECT_MODULE_ID   = 3
 };
 
-enum TYPE_PACKET: char
+enum TYPE_PACKET: uint8_t
 {
   DATA    = 1,
   CONTROL = 2,
@@ -36,7 +36,7 @@ enum TYPE_PACKET: char
   UNKNOWN = 4
 };
 
-enum COMMANDS_TYPE: char
+enum COMMANDS_TYPE: uint8_t
 {
   RESTART_ALL          = 1,
   TURNOFF_RADIO        = 2,
@@ -49,7 +49,7 @@ enum COMMANDS_TYPE: char
   HEARTBEAT            = 9
 };
 
-enum SERVICE_MSG_TYPE: char
+enum SERVICE_MSG_TYPE: uint8_t
 {
   START_MODULE_SUCCESS = 1,
   SUCCESS_GET_COMMAND  = 2,
@@ -60,19 +60,19 @@ enum SERVICE_MSG_TYPE: char
   GET_ERROR_COMMAND    = 7
 };
 
-enum WORK_MODE: char
+enum WORK_MODE: uint8_t
 {
   SHOW_METEO_DATA = 0,
   SHOW_COMMANDS   = 1
 };
 
-enum SHOW_DATA_MODE: char
+enum SHOW_DATA_MODE: uint8_t
 {
   CLASSIC       = 0,
   ALTERNATIVE   = 1
 };
 
-enum KEY_PORT: char
+enum KEY_PORT: uint8_t
 {
   KEY_1   = 4, //center
   KEY_2   = 3, //topleft
@@ -81,7 +81,7 @@ enum KEY_PORT: char
   KEY_5   = 6  //topRight
 };
 
-enum LOG_MSG_TYPE: char
+enum LOG_MSG_TYPE: uint8_t
 {
   METEODATA = 0,
   INFO      = 1,
@@ -105,8 +105,7 @@ MODULE_ID currDisplayedModuleId = MODULE_ID::INTERNAL_MODULE_ID;
 WORK_MODE currWorkMode  = WORK_MODE::SHOW_METEO_DATA;
 SHOW_DATA_MODE currShowDataMode = SHOW_DATA_MODE::CLASSIC;
 COMMANDS_TYPE currCommand = COMMANDS_TYPE::TURNOFF_RADIO;
-short currMeteoParamExternal;
-short currMeteoParamInternal;
+uint8_t currMeteoParam;
 float currNumOutPacket;
 
 void setup()
@@ -114,8 +113,7 @@ void setup()
   Serial.begin(SERIAL_SPEED);
   //rtc.setTime(31, 32, 21, 25, 1, 2025);
   currNumOutPacket = 0;
-  currMeteoParamExternal = 1;
-  currMeteoParamInternal = 1;
+  currMeteoParam = 1;
 
   if(!dataPacketExternal){
     dataPacketExternal = new float*[COUNT_SEGMENTS_IN_PACKET];
@@ -136,6 +134,7 @@ void setup()
   initializeButtons();
 
   delay(SETUP_DELAY);
+  resetDisplay();
 }
 
 void startRadio()
@@ -155,18 +154,17 @@ void loop()
   {
     processIncomingData();
 
-    if(isCompleteDataPacket(currDisplayedModuleId)){
+    if(currWorkMode == WORK_MODE::SHOW_METEO_DATA && 
+       isCompleteDataPacket(currDisplayedModuleId)){
       updateDisplay();
     }
   }
 
-  //TODO Использование полученных и проверенных данных
-  //TODO Здесь сырые данные должны переводиться в адекватные единицы
   //TODO Сервисные пакеты удаляются после логгирования\обработки, пакеты с данными живут до получения нового пакета
   //TODO Тут анализ нажатий клавиш на блоке, отправка управляющих пакетов и отображение полученных данных на дисплее
-  //TODO Реализовать функции получения значений параметров в виде строки. Реализовать функции переключения режима кнопок и текущего модуля
   //TODO Реализовать функции обработки нажатий на кнопки
   buttonsHandler();
+  updateDisplayHeader(); //Всегда обновляем первую строку, т.к. там выводится текущее время
   delay(LOOP_DELAY_MSEC);
 }
 
@@ -250,7 +248,8 @@ bool analyzeIncomingPacket(float* packet)
 //Сохраняем данные в нужный буфер в зависимости от результатов проведенного ранее анализа
 void saveIncomingData(float* packet)
 {
-  if((currPacketType == TYPE_PACKET::DATA && static_cast<int>(packet[6]) == 0) || currPacketType == TYPE_PACKET::SERVICE){
+  if((currPacketType == TYPE_PACKET::DATA && static_cast<int>(packet[6]) == 0) || 
+     currPacketType == TYPE_PACKET::SERVICE){
     //Если это первый сегмент пакета данных и сервисный пакет, очищаем весь буфер данных или сервисный буфер для данного модуля
     resetCurrIncomingPacket();
   }
