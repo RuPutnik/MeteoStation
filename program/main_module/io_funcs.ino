@@ -28,9 +28,15 @@ void updateDisplay()
 void updateDisplayHeader()
 {
    lcd.setCursor(0, 0);
-   //lcd.print("")
-  // lcd.print(getCurrDateTime());
-  // Serial.println(getCurrDateTime());
+   if(currDisplayedModuleId == MODULE_ID::EXTERNAL_MODULE_ID){
+     lcd.print("M2");
+   }
+   else if(currDisplayedModuleId == MODULE_ID::INTERNAL_MODULE_ID){
+     lcd.print("M1");
+   }
+   
+   lcd.setCursor(3, 0);
+   lcd.print(getCurrDateTime());
 }
 
 void updateDisplayContent()
@@ -47,6 +53,9 @@ void updateDisplayContent()
 
 void updateDisplayContentMeteodata()
 {
+  lcd.setCursor(0, 2);
+  lcd.print(" ");
+
   //TODO
 }
 
@@ -111,35 +120,88 @@ void topRightButtonHandler()
 {
   //Данные назад / команда назад
   Serial.println("TopRight press");
-
+  if(currWorkMode == WORK_MODE::SHOW_METEO_DATA)
+  {
+    if(currMeteoParam > 0){
+      currMeteoParam--;
+    }
+  }
+  else
+  {
+    if(currCommand > COMMANDS_TYPE::RESTART_ALL){
+      currCommand = static_cast<COMMANDS_TYPE>(static_cast<uint8_t>(currCommand) - 1);
+    }
+  }
 }
 
 void bottomRightButtonHandler()
 {
   //Данные вперед / команда вперед
   Serial.println("BottomRight press");
-
+  if(currWorkMode == WORK_MODE::SHOW_METEO_DATA)
+  {
+    const uint8_t maxMeteoParamNumber = ((currDisplayedModuleId == MODULE_ID::INTERNAL_MODULE_ID) ? COUNT_METEO_PARAM_INTERNAL : COUNT_METEO_PARAM_EXTERNAL);
+    if(currMeteoParam < maxMeteoParamNumber){
+      currMeteoParam++;
+    }
+  }
+  else
+  {
+    if(currCommand < COMMANDS_TYPE::HEARTBEAT){
+      currCommand = static_cast<COMMANDS_TYPE>(static_cast<uint8_t>(currCommand) + 1);
+    }
+  }
 }
 
 void centerButtonHandler()
 {
   //Смена модуля
   Serial.println("Center press");
+  if(currDisplayedModuleId == MODULE_ID::INTERNAL_MODULE_ID){
+    currDisplayedModuleId = MODULE_ID::EXTERNAL_MODULE_ID;
+  }else{
+    currDisplayedModuleId = MODULE_ID::INTERNAL_MODULE_ID;
+  }
 
+  currMeteoParam = 1;
+  currCommand = COMMANDS_TYPE::TURNOFF_RADIO;
 }
 
 void topLeftButtonHandler()
 {
   //Войти-выйти в режим управления
   Serial.println("TopLeft press");
+  if(currWorkMode == WORK_MODE::SHOW_METEO_DATA){
+    currWorkMode = WORK_MODE::SHOW_COMMANDS;
+  }else{
+    currWorkMode = WORK_MODE::SHOW_METEO_DATA;
+  }
 
+  currMeteoParam = 1;
+  currCommand = COMMANDS_TYPE::TURNOFF_RADIO;
 }
 
 void bottomLeftButtonHandler()
 {
   //Формат отображения значений / Отправить команду
   Serial.println("BottomLeft press");
-
+  if(currWorkMode == WORK_MODE::SHOW_METEO_DATA)
+  {
+    if(currShowDataMode == SHOW_DATA_MODE::CLASSIC)
+    {
+      currShowDataMode = SHOW_DATA_MODE::ALTERNATIVE;
+    }
+    else
+    {
+      currShowDataMode = SHOW_DATA_MODE::CLASSIC;
+    }
+  }
+  else
+  {
+    fillActionPacket(currCommand, actionPacket);
+    //sendActionPacket(actionPacket);
+    memset(actionPacket, 0, DATA_SEGMENT_LENGTH_B);
+  }
 }
 
 String formTemperatureMsg()

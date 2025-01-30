@@ -14,6 +14,8 @@
 #define DATA_SEGMENT_LENGTH        8
 #define DATA_SEGMENT_LENGTH_B      DATA_SEGMENT_LENGTH * sizeof(float)  //32
 #define COUNT_SEGMENTS_IN_PACKET   3
+#define COUNT_METEO_PARAM_EXTERNAL 6
+#define COUNT_METEO_PARAM_INTERNAL 4
 
 #define RADIO_CE_PIN               8
 #define RADIO_CSN_PIN              9
@@ -161,20 +163,9 @@ void loop()
   }
 
   //TODO Сервисные пакеты удаляются после логгирования\обработки, пакеты с данными живут до получения нового пакета
-  //TODO Тут анализ нажатий клавиш на блоке, отправка управляющих пакетов и отображение полученных данных на дисплее
-  //TODO Реализовать функции обработки нажатий на кнопки
   buttonsHandler();
   updateDisplayHeader(); //Всегда обновляем первую строку, т.к. там выводится текущее время
   delay(LOOP_DELAY_MSEC);
-}
-
-void changeWorkMode()
-{
-  if(currWorkMode == WORK_MODE::SHOW_METEO_DATA){
-    currWorkMode = WORK_MODE::SHOW_COMMANDS;
-  }else{
-    currWorkMode = WORK_MODE::SHOW_METEO_DATA;
-  }
 }
 
 void processIncomingData()
@@ -214,7 +205,12 @@ void processIncomingData()
 
 void sendActionPacket(float* actionPacket)
 {
+  radio.stopListening();
+  radio.write(actionPacket, DATA_SEGMENT_LENGTH_B);
+  radio.startListening();
+
   //TODO Реализазовать механизм подтверждения получения управляющего пакета (и, при необходимости, ответного пакета с данными)
+  //TODO Реализовать механизм вывода на дисплей информации о выполнении/невыполнении команды (определяется по получении ответной квитанции от модуля) и информацию, которую вернул модуль в ответ на запрос (при наличии)
 }
 
 bool analyzeIncomingPacket(float* packet)
