@@ -136,7 +136,7 @@ void setup()
   initializeButtons();
 
   delay(SETUP_DELAY);
-  resetDisplay();
+  updateDisplay();
 }
 
 void startRadio()

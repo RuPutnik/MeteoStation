@@ -21,6 +21,7 @@ void resetDisplay()
 
 void updateDisplay()
 {
+  resetDisplay();
   updateDisplayHeader();
   updateDisplayContent();
 }
@@ -53,8 +54,11 @@ void updateDisplayContent()
 
 void updateDisplayContentMeteodata()
 {
-  lcd.setCursor(0, 2);
-  lcd.print(" ");
+  if(!isCompleteDataPacket(currDisplayedModuleId)){
+    lcd.setCursor(6, 2);
+    lcd.print("No data");
+    return;
+  }
 
   //TODO
 }
