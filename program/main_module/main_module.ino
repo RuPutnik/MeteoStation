@@ -112,6 +112,7 @@ float currNumOutPacket;
 
 void setup()
 {
+  startDisplay();
   Serial.begin(SERIAL_SPEED);
   //rtc.setTime(31, 32, 21, 25, 1, 2025);
   currNumOutPacket = 0;
@@ -131,7 +132,6 @@ void setup()
     }
   }
   
-  startDisplay();
   startRadio();
   initializeButtons();
 

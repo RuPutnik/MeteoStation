@@ -66,9 +66,17 @@ void updateDisplayContentMeteodata()
 void updateDisplayContentCommands()
 {
   lcd.setCursor(0, 2);
-  lcd.print(">");
+  lcd.print(String{"> "} + formCommandMsg(currCommand));
 
-  //TODO
+  if(currCommand > COMMANDS_TYPE::RESTART_ALL){
+    lcd.setCursor(2, 1);
+    lcd.print(formCommandMsg(static_cast<COMMANDS_TYPE>(currCommand - 1)));
+  }
+
+  if(currCommand < COMMANDS_TYPE::HEARTBEAT){
+    lcd.setCursor(2, 3);
+    lcd.print(formCommandMsg(static_cast<COMMANDS_TYPE>(currCommand + 1)));
+  }
 }
 
 struct KeyBoundle
