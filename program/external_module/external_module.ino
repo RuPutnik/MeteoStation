@@ -4,19 +4,17 @@
 #include <Adafruit_AHT10.h>
 #include <Adafruit_BMP280.h>
 
-#include <string.h>
-
 #define LOOP_DELAY_MSEC            10
 #define COUNT_DETECTOR             6
 #define START_DELAY_MSEC           3000
 #define PIPE_READ_ADDRESS          0xF0F0F0F0E1LL
 #define PIPE_WRITE_ADDRESS         0xF0F0F0F0E2LL
-#define DEFAULT_TIME_INTERVAL_MSEC 10000
 #define SERIAL_SPEED               9600
 #define RADIO_CHANNEL_NUMBER       8
 #define DATA_SEGMENT_LENGTH        8
 #define DATA_SEGMENT_LENGTH_B      (DATA_SEGMENT_LENGTH * sizeof(float))  //32
 #define COUNT_SEGMENTS_IN_PACKET   3
+#define COUNT_SEND_DATA_INTERVALS  4
 
 #define CENTRAL_MODULE_ID          0
 #define MODULE_ID                  2
@@ -32,7 +30,8 @@ Adafruit_AHT10 ahtDetector;
 Adafruit_BMP280 bmpDetector;
 RF24 radio(RADIO_CE_PORT, RADIO_CSN_PORT);
 
-int timeIntervalMsec;
+int currSendDataIntervalIndex;
+unsigned long sendDataIntervalsMsec[COUNT_SEND_DATA_INTERVALS]{1000, 5000, 10000, 60000}; //Возможные интервалы отправки данных
 float** dataPacket = nullptr;
 float servicePacket[DATA_SEGMENT_LENGTH];
 float actionPacket[DATA_SEGMENT_LENGTH];
@@ -67,13 +66,15 @@ enum SERVICE_MSG_TYPE{
   GET_ERROR_COMMAND    = 7
 };
 
+
+
 //Главные функции
 void setup() {
   Serial.begin(SERIAL_SPEED);
   pinMode(LED_PORT, OUTPUT);
   numberPacket = 0;
   prevTime = 0;
-  timeIntervalMsec = DEFAULT_TIME_INTERVAL_MSEC;
+  currSendDataIntervalIndex = 2; //По умолчанию используем интервал 10сек (10 000 мсек)
   resetDetectorMap(detectorMap);
 
   if(!dataPacket){
@@ -100,7 +101,7 @@ void setup() {
 }
 
 void loop() {
-  if((millis() - prevTime) >= static_cast<unsigned long>(timeIntervalMsec)){
+  if((millis() - prevTime) >= sendDataIntervalsMsec[currSendDataIntervalIndex]){
     Serial.println("=== FORM DATA PACKET ===");
     //формируем массив данных
     fillDataPacket((float**)dataPacket);
@@ -146,7 +147,7 @@ void analyzeIncomingPacket(float* packet){
       stopRadio();
     break;
     case COMMANDS_TYPE::CHANGE_SEND_INTERVAL:
-      changeSendInterval((int)packet[4]); //Параметр можно менять на одно из фиксированного набора значений по кругу 
+      changeSendInterval(); //Параметр можно менять на одно из фиксированного набора значений по кругу 
     break;
     case COMMANDS_TYPE::STOP_SEND_DATA:
       stopSendData(static_cast<int>(packet[4])); //Возможно, не получится реализовать. Сложно вводить числа на блоке управления
@@ -206,56 +207,56 @@ void fillHeaderAndTailServicePacket(float* packet){
 }
 
 void fillServicePacketSMS(float* packet){
-  packet[3]=SERVICE_MSG_TYPE::START_MODULE_SUCCESS;
-  packet[4]=0;
+  packet[3] = SERVICE_MSG_TYPE::START_MODULE_SUCCESS;
+  packet[4] = 0;
 
   fillHeaderAndTailServicePacket(packet);
 }
 
 void fillServicePacketSGC(float* packet, float* actionPacket){
-  packet[3]=SERVICE_MSG_TYPE::SUCCESS_GET_COMMAND;
-  packet[4]=actionPacket[3];
+  packet[3] = SERVICE_MSG_TYPE::SUCCESS_GET_COMMAND;
+  packet[4] = actionPacket[3];
 
   fillHeaderAndTailServicePacket(packet);
 }
 
 void fillServicePacketESD(float* packet, short numErrDetector){
-  packet[3]=SERVICE_MSG_TYPE::ERROR_START_DETECTOR;
-  packet[4]=numErrDetector;
+  packet[3] = SERVICE_MSG_TYPE::ERROR_START_DETECTOR;
+  packet[4] = numErrDetector;
 
   fillHeaderAndTailServicePacket(packet);
 }
 
 void fillServicePacketRDM(float* packet, bool* detectorMap){
-  packet[3]=SERVICE_MSG_TYPE::REPORT_DETECTOR_MAP;
+  packet[3] = SERVICE_MSG_TYPE::REPORT_DETECTOR_MAP;
   uint32_t bitMapDetector=0;
 
   for(int i=0; i<COUNT_DETECTOR; i++){
     //Заполняем побитово 4-байтовое целое беззнаковое, оставляя 3 старших байтах и 2 старших бита младшего байта неиспользованными
     bitMapDetector |= (static_cast<uint32_t>(detectorMap[i]) << i);
   }
-  packet[4]=bitMapDetector;
+  packet[4] = bitMapDetector;
 
   fillHeaderAndTailServicePacket(packet);
 }
 
 void fillServicePacketRTI(float* packet, int currentTimeIntervalMsec){
-  packet[3]=SERVICE_MSG_TYPE::REPORT_TIME_INTERVAL;
-  packet[4]=currentTimeIntervalMsec;
+  packet[3] = SERVICE_MSG_TYPE::REPORT_TIME_INTERVAL;
+  packet[4] = currentTimeIntervalMsec;
 
   fillHeaderAndTailServicePacket(packet);
 }
 
 void fillServicePacketRLT(float* packet){
-  packet[3]=SERVICE_MSG_TYPE::REPORT_LIFE_TIME;
-  packet[4]=millis();
+  packet[3] = SERVICE_MSG_TYPE::REPORT_LIFE_TIME;
+  packet[4] = millis();
 
   fillHeaderAndTailServicePacket(packet);
 }
 
 void fillServicePacketGEC(float* packet, float* actionPacket){
-  packet[3]=SERVICE_MSG_TYPE::GET_ERROR_COMMAND;
-  packet[4]=actionPacket[3];
+  packet[3] = SERVICE_MSG_TYPE::GET_ERROR_COMMAND;
+  packet[4] = actionPacket[3];
 
   fillHeaderAndTailServicePacket(packet);
 }
@@ -275,16 +276,16 @@ void restartAll(){
   setup();
 }
 
-void changeSendInterval(int newSendIntervalMsec){
-  timeIntervalMsec=newSendIntervalMsec;
+void changeSendInterval(){
+  currSendDataIntervalIndex = (currSendDataIntervalIndex > 0) ? currSendDataIntervalIndex - 1 : COUNT_SEND_DATA_INTERVALS - 1;
 }
 
 void stopSendData(int numberDetector){
-  detectorMap[numberDetector]=false;
+  detectorMap[numberDetector] = false;
 }
 
 void resumeSendData(int numberDetector){
-  detectorMap[numberDetector]=true;
+  detectorMap[numberDetector] = true;
 }
 
 void returnDetectorMap(){
@@ -293,7 +294,7 @@ void returnDetectorMap(){
 }
 
 void returnCurrentTimeInterval(){
-  fillServicePacketRTI(servicePacket, timeIntervalMsec);
+  fillServicePacketRTI(servicePacket, sendDataIntervalsMsec[currSendDataIntervalIndex]);
   sendPacketService(servicePacket);
 }
 
