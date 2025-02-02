@@ -1,5 +1,13 @@
 //Функции для обработки входа (нажатия кнопок) и выхода (работа с дисплеем, запись в SD карту)
 
+struct KeyBoundle
+{
+  KEY_PORT port;
+  void (*handlerPtr)();
+};
+
+KeyBoundle keyBundles[COUNT_KEYS];
+
 void startDisplay()
 {
   lcd.init();
@@ -79,13 +87,41 @@ void updateDisplayContentCommands()
   }
 }
 
-struct KeyBoundle
+void printDisplayExecuteCommandStatus(bool executed)
 {
-  KEY_PORT port;
-  void (*handlerPtr)();
-};
+  lcd.clear();
+  updateDisplayHeader();
 
-KeyBoundle keyBundles[COUNT_KEYS];
+  lcd.setCursor(2, 6);
+  lcd.print("Command");
+
+  if(executed)
+  {
+    lcd.setCursor(3, 6);
+    lcd.print("executed");
+  }
+  else
+  {
+    lcd.setCursor(3, 7);
+    lcd.print("failed");
+  }
+}
+
+void printDisplayModuleParam(SERVICE_MSG_TYPE typeServicePacket, float valueParam)
+{
+  // switch(typeServicePacket)
+  // {
+  //   case SERVICE_MSG_TYPE::REPORT_DETECTOR_MAP:
+
+  //   case SERVICE_MSG_TYPE::REPORT_TIME_INTERVAL:
+
+  //   case SERVICE_MSG_TYPE::REPORT_LIFE_TIME:
+
+  //   default:
+
+      
+  // }
+}
 
 void addButtonHandler(KEY_PORT port, void (*handlerPtr)()){
   static int currPortIndex = 0;
@@ -431,6 +467,48 @@ String formCommandMsg(COMMANDS_TYPE commandId)
       return "Ping";
     default:
       return "Command <?>";  
+  }
+}
+
+String formMeteoDataMsg(int indexData)
+{
+  switch(indexData){
+    case 0:
+      return formTemperatureMsg();
+    case 1:
+      return formHumidityMsg();
+    case 2:      
+      if(currDisplayedModuleId == MODULE_ID::EXTERNAL_MODULE_ID)
+      {
+        return formPressureMsg();
+      }
+      else if(currDisplayedModuleId == MODULE_ID::INTERNAL_MODULE_ID)
+      {
+        return formMicrophoneMsg();
+      }
+      else
+      {
+        return "";
+      }
+    case 3:
+      if(currDisplayedModuleId == MODULE_ID::EXTERNAL_MODULE_ID)
+      {
+        return formRainMsg();
+      }
+      else if(currDisplayedModuleId == MODULE_ID::INTERNAL_MODULE_ID)
+      {
+        return formMQ135Msg();
+      }
+      else
+      {
+        return "";
+      }
+    case 4:
+      return formUVMsg();
+    case 5:
+      return formSolarMsg();
+    default:
+      return "";
   }
 }
 

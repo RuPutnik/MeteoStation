@@ -5,7 +5,8 @@
 
 #define LOOP_DELAY_MSEC            10
 #define KEY_POSTHANDLE_DELAY_MSEC  1000
-#define SETUP_DELAY                2000 
+#define SETUP_DELAY                2000
+#define WAIT_ACK_REC_COMMAND_MSEC  500
 
 #define PIPE_READ_ADDRESS          0xF0F0F0F0E2LL
 #define PIPE_WRITE_ADDRESS         0xF0F0F0F0E1LL
@@ -16,6 +17,7 @@
 #define COUNT_SEGMENTS_IN_PACKET   3
 #define COUNT_METEO_PARAM_EXTERNAL 6
 #define COUNT_METEO_PARAM_INTERNAL 4
+#define COUNT_ATTEMPT_SEND_ACTION  3
 
 #define RADIO_CE_PIN               8
 #define RADIO_CSN_PIN              9
@@ -204,6 +206,20 @@ void processIncomingData()
 }
 
 void sendActionPacket(float* actionPacket)
+{
+  //Делаем несколько попыток отправки. Если так и не получилось получить подтверждение, сообщаем об этом
+  for(int i = 0; i < COUNT_ATTEMPT_SEND_ACTION; i++){
+    const bool resultAttempt = oneAttemptSendActionPacket(actionPacket);
+    if(resultAttempt){
+      printDisplayExecuteCommandStatus(true);
+      return;
+    }
+  }
+
+  printDisplayExecuteCommandStatus(false);
+}
+
+bool oneAttemptSendActionPacket(float* actionPacket)
 {
   radio.stopListening();
   radio.write(actionPacket, DATA_SEGMENT_LENGTH_B);
