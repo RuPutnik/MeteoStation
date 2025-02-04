@@ -3,13 +3,16 @@
 #include <microDS3231.h>
 #include <LiquidCrystal_I2C.h>
 
-#define LOOP_DELAY_MSEC            10
-#define KEY_POSTHANDLE_DELAY_MSEC  1000
-#define SETUP_DELAY                2000
-#define WAIT_ACK_REC_COMMAND_MSEC  500
+#define LOOP_DELAY_MSEC              10
+#define KEY_POSTHANDLE_DELAY_MSEC    1000
+#define SETUP_DELAY                  2000
+#define WAIT_ACK_REC_COMMAND_MSEC    500
+#define PRINT_SERVICE_MSG_MSEC       1000
 
-#define PIPE_READ_ADDRESS          0xF0F0F0F0E2LL
-#define PIPE_WRITE_ADDRESS         0xF0F0F0F0E1LL
+#define PIPE_READ_ADDRESS_EXTERNAL   0xF0F0F0F0E2LL
+#define PIPE_READ_ADDRESS_INTERNAL   0xF0F0F0F0E4LL
+#define PIPE_WRITE_ADDRESS           0xF0F0F0F0E1LL
+
 #define SERIAL_SPEED               9600
 #define RADIO_CHANNEL_NUMBER       8
 #define DATA_SEGMENT_LENGTH        8
@@ -92,6 +95,8 @@ enum LOG_MSG_TYPE: uint8_t
   ERROR     = 2
 };
 
+void printDisplayModuleServiceMsg(SERVICE_MSG_TYPE typeServicePacket, float valueParam = 0);
+
 LiquidCrystal_I2C lcd(LCD2004_ADDRESS, 20, 4);
 RF24 radio(RADIO_CE_PIN, RADIO_CSN_PIN);
 MicroDS3231 rtc;
@@ -147,8 +152,9 @@ void startRadio()
   radio.setChannel(RADIO_CHANNEL_NUMBER);
   radio.setDataRate(RF24_1MBPS);
   radio.setPALevel(RF24_PA_HIGH);
-  radio.openReadingPipe(1, PIPE_READ_ADDRESS);
-  radio.openWritingPipe(PIPE_WRITE_ADDRESS); //Открываем трубу для отправки
+  radio.enableDynamicAck(); //Разрешаем выборочное отключение подтверждения передачи данных
+  radio.openReadingPipe(1, PIPE_READ_ADDRESS_EXTERNAL);
+  radio.openReadingPipe(2, PIPE_READ_ADDRESS_INTERNAL);
   radio.startListening();
 }
 
@@ -205,29 +211,152 @@ void processIncomingData()
   }
 }
 
+bool processReceivedServicePacket(bool (*handlerPacket)(float*))
+{
+  const size_t currTime = millis();
+
+  while(true)
+  {
+    if(radio.available())
+    {
+      processIncomingData();
+      float* const servicePacket = getServicePacket(currDisplayedModuleId);
+
+      if(servicePacket[6] == -1 && checkIncomingDataIntegrity())
+      { //Проверяем на -1, т.к. это значит, что данные пакета записались в массив текущего модуля. В этом элементе массива по протоколу всегда -1            
+        return handlerPacket(servicePacket);
+      }
+    }
+
+    if((millis() - currTime) > WAIT_ACK_REC_COMMAND_MSEC){
+      return false;
+    }
+
+    delay(LOOP_DELAY_MSEC);
+  }
+}
+
 void sendActionPacket(float* actionPacket)
 {
   //Делаем несколько попыток отправки. Если так и не получилось получить подтверждение, сообщаем об этом
   for(int i = 0; i < COUNT_ATTEMPT_SEND_ACTION; i++){
-    const bool resultAttempt = oneAttemptSendActionPacket(actionPacket);
+    const bool resultAttempt = attemptSendActionPacket(actionPacket);
     if(resultAttempt){
-      printDisplayExecuteCommandStatus(true);
       return;
     }
   }
-
+  //TODO Реализовать механизм вывода на дисплей информации о выполнении/невыполнении команды (определяется по получении ответной квитанции от модуля) и информацию, которую вернул модуль в ответ на запрос (при наличии)
   printDisplayExecuteCommandStatus(false);
+  delay(PRINT_SERVICE_MSG_MSEC);
 }
 
-bool oneAttemptSendActionPacket(float* actionPacket)
+bool attemptSendActionPacket(float* actionPacket)
 {
   radio.stopListening();
-  radio.write(actionPacket, DATA_SEGMENT_LENGTH_B);
+  radio.writeFast(actionPacket, DATA_SEGMENT_LENGTH_B, true);
   radio.startListening();
 
-  //TODO Реализазовать механизм подтверждения получения управляющего пакета (и, при необходимости, ответного пакета с данными)
-  //TODO Реализовать механизм вывода на дисплей информации о выполнении/невыполнении команды (определяется по получении ответной квитанции от модуля) и информацию, которую вернул модуль в ответ на запрос (при наличии)
+  const bool wasReceivedResponse = processReceivedServicePacket(handlerCorrectServicePacket);
+  if(!wasReceivedResponse){
+    return false;
+  }
+
+  const COMMANDS_TYPE commandType = static_cast<COMMANDS_TYPE>(actionPacket[3]);
+  if(commandType == COMMANDS_TYPE::GET_DETECTOR_MAP ||
+     commandType == COMMANDS_TYPE::GET_TIME_INTERVAL ||
+     commandType == COMMANDS_TYPE::GET_LIFE_TIME)
+  {
+    return processReceivedServicePacket(readModuleServiceParam);
+  } 
+  else
+  {
+    printDisplayExecuteCommandStatus(true);
+    delay(PRINT_SERVICE_MSG_MSEC);
+    return true; 
+  }
 }
+
+bool handlerCorrectServicePacket(float* servicePacket)
+{
+  const SERVICE_MSG_TYPE msgType = static_cast<SERVICE_MSG_TYPE>(servicePacket[3]);
+  if(msgType == SERVICE_MSG_TYPE::GET_ERROR_COMMAND){    
+    printDisplayModuleServiceMsg(msgType);
+    delay(PRINT_SERVICE_MSG_MSEC);
+  }
+
+  return msgType == SERVICE_MSG_TYPE::SUCCESS_GET_COMMAND;
+}
+
+bool readModuleServiceParam(float* servicePacket)
+{
+  const SERVICE_MSG_TYPE msgType = static_cast<SERVICE_MSG_TYPE>(servicePacket[3]);
+  if(msgType != SERVICE_MSG_TYPE::REPORT_DETECTOR_MAP &&
+     msgType != SERVICE_MSG_TYPE::REPORT_TIME_INTERVAL &&
+     msgType != SERVICE_MSG_TYPE::REPORT_LIFE_TIME){
+       return false;
+  }
+
+  printDisplayModuleServiceMsg(msgType, servicePacket[4]);
+  delay(PRINT_SERVICE_MSG_MSEC);
+  return true;
+}
+
+// bool attemptSendActionPacket(float* actionPacket)
+// {
+//   radio.stopListening();
+//   radio.writeFast(actionPacket, DATA_SEGMENT_LENGTH_B, true);
+//   radio.startListening();
+
+//   const size_t currTime = millis();
+
+//   while(true)
+//   {
+//     if(radio.available())
+//     {
+//       processIncomingData();
+//       float* servicePacket = getServicePacket(currDisplayedModuleId);
+
+//       if(servicePacket[6] == -1 && checkIncomingDataIntegrity())
+//       { //Проверяем на -1, т.к. это значит, что данные пакета записались в массив текущего модуля. В этом элементе массива по протоколу всегда -1
+//         const SERVICE_MSG_TYPE msgType = static_cast<SERVICE_MSG_TYPE>(servicePacket[3]);
+        
+//         if(msgType == SERVICE_MSG_TYPE::SUCCESS_GET_COMMAND){
+//           return processSuccessServiceMsg(actionPacket);
+//         }
+//         else if(msgType == SERVICE_MSG_TYPE::GET_ERROR_COMMAND){
+//           return false;
+//         }
+//       }
+//     }
+
+//     if((millis() - currTime) > WAIT_ACK_REC_COMMAND_MSEC){
+//       return false;
+//     }
+
+//     delay(LOOP_DELAY_MSEC);
+//   }
+
+//   //TODO Реализазовать механизм подтверждения получения управляющего пакета (и, при необходимости, ответного пакета с данными)
+// }
+
+
+
+// bool processSuccessServiceMsg(float* actionPacket)
+// {
+//   const COMMANDS_TYPE commandType = static_cast<COMMANDS_TYPE>(actionPacket[3]);
+//   if(commandType == COMMANDS_TYPE::GET_DETECTOR_MAP ||
+//      commandType == COMMANDS_TYPE::GET_TIME_INTERVAL ||
+//      commandType == COMMANDS_TYPE::GET_LIFE_TIME)
+//   {
+//     return readModuleServiceParam(commandType);
+//   } 
+//   else
+//   {
+//     printDisplayExecuteCommandStatus(true);
+//     delay(PRINT_SERVICE_MSG_MSEC);
+//     return true; 
+//   }
+// }
 
 bool analyzeIncomingPacket(float* packet)
 {

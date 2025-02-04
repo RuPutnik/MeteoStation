@@ -100,7 +100,7 @@ void updateDisplayContentCommands()
 
 void printDisplayExecuteCommandStatus(bool executed)
 {
-  lcd.clear();
+  resetDisplay();
   updateDisplayHeader();
 
   lcd.setCursor(2, 6);
@@ -118,29 +118,37 @@ void printDisplayExecuteCommandStatus(bool executed)
   }
 }
 
-void printDisplayModuleParam(SERVICE_MSG_TYPE typeServicePacket, float valueParam = 0)
+void printDisplayModuleServiceMsg(SERVICE_MSG_TYPE typeServicePacket, float valueParam = 0)
 {
-  lcd.clear();
+  resetDisplay();
   updateDisplayHeader();
 
+  lcd.setCursor(2, 0);
   switch(typeServicePacket)
   {
     case SERVICE_MSG_TYPE::START_MODULE_SUCCESS:
+
       break;
     case SERVICE_MSG_TYPE::SUCCESS_GET_COMMAND:
+
       break;
     case SERVICE_MSG_TYPE::ERROR_START_DETECTOR:
+
       break;
     case SERVICE_MSG_TYPE::REPORT_DETECTOR_MAP:
+      lcd.print(String{"Detector map:"} + String{valueParam});
       break;
     case SERVICE_MSG_TYPE::REPORT_TIME_INTERVAL:
+      lcd.print(String{"Send interv:"} + String{valueParam});
       break;
     case SERVICE_MSG_TYPE::REPORT_LIFE_TIME:
+      lcd.print(String{"Lifetime:"} + String{valueParam});
       break;
     case SERVICE_MSG_TYPE::GET_ERROR_COMMAND:
+
       break;
     default:
-
+      lcd.print("Unknown msg type!");
       break;
   }
 }
