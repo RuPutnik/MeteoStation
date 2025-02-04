@@ -68,7 +68,18 @@ void updateDisplayContentMeteodata()
     return;
   }
 
-  //TODO
+  lcd.setCursor(0, 2);
+  lcd.print(formMeteoDataMsg(currMeteoParam));
+
+  if(currCommand > 0){
+    lcd.setCursor(0, 1);
+    lcd.print(formMeteoDataMsg(currMeteoParam - 1));
+  }
+
+  if(currCommand < getMaxMeteoParamIndex()){
+    lcd.setCursor(0, 3);
+    lcd.print(formMeteoDataMsg(currMeteoParam + 1));
+  }
 }
 
 void updateDisplayContentCommands()
@@ -107,20 +118,31 @@ void printDisplayExecuteCommandStatus(bool executed)
   }
 }
 
-void printDisplayModuleParam(SERVICE_MSG_TYPE typeServicePacket, float valueParam)
+void printDisplayModuleParam(SERVICE_MSG_TYPE typeServicePacket, float valueParam = 0)
 {
-  // switch(typeServicePacket)
-  // {
-  //   case SERVICE_MSG_TYPE::REPORT_DETECTOR_MAP:
+  lcd.clear();
+  updateDisplayHeader();
 
-  //   case SERVICE_MSG_TYPE::REPORT_TIME_INTERVAL:
+  switch(typeServicePacket)
+  {
+    case SERVICE_MSG_TYPE::START_MODULE_SUCCESS:
+      break;
+    case SERVICE_MSG_TYPE::SUCCESS_GET_COMMAND:
+      break;
+    case SERVICE_MSG_TYPE::ERROR_START_DETECTOR:
+      break;
+    case SERVICE_MSG_TYPE::REPORT_DETECTOR_MAP:
+      break;
+    case SERVICE_MSG_TYPE::REPORT_TIME_INTERVAL:
+      break;
+    case SERVICE_MSG_TYPE::REPORT_LIFE_TIME:
+      break;
+    case SERVICE_MSG_TYPE::GET_ERROR_COMMAND:
+      break;
+    default:
 
-  //   case SERVICE_MSG_TYPE::REPORT_LIFE_TIME:
-
-  //   default:
-
-      
-  // }
+      break;
+  }
 }
 
 void addButtonHandler(KEY_PORT port, void (*handlerPtr)()){
@@ -188,8 +210,7 @@ void bottomRightButtonHandler()
   Serial.println("BottomRight press");
   if(currWorkMode == WORK_MODE::SHOW_METEO_DATA)
   {
-    const uint8_t maxMeteoParamNumber = ((currDisplayedModuleId == MODULE_ID::INTERNAL_MODULE_ID) ? COUNT_METEO_PARAM_INTERNAL : COUNT_METEO_PARAM_EXTERNAL);
-    if(currMeteoParam < maxMeteoParamNumber){
+    if(currMeteoParam < getMaxMeteoParamIndex()){
       currMeteoParam++;
     }
   }
@@ -470,9 +491,9 @@ String formCommandMsg(COMMANDS_TYPE commandId)
   }
 }
 
-String formMeteoDataMsg(int indexData)
+String formMeteoDataMsg(uint8_t indexParam)
 {
-  switch(indexData){
+  switch(indexParam){
     case 0:
       return formTemperatureMsg();
     case 1:

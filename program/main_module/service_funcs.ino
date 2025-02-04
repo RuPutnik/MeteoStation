@@ -105,3 +105,8 @@ float** getMeteoDataPacket(MODULE_ID moduleId)
     return nullptr;
   }
 }
+
+uint8_t getMaxMeteoParamIndex()
+{
+  return (currDisplayedModuleId == MODULE_ID::INTERNAL_MODULE_ID) ? COUNT_METEO_PARAM_INTERNAL : COUNT_METEO_PARAM_EXTERNAL;
+}
