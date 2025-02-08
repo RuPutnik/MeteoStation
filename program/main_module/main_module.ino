@@ -6,7 +6,7 @@
 #define LOOP_DELAY_MSEC              10
 #define KEY_POSTHANDLE_DELAY_MSEC    1000
 #define SETUP_DELAY                  2000
-#define WAIT_ACK_REC_COMMAND_MSEC    500
+#define WAIT_ACK_REC_COMMAND_MSEC    2000
 #define PRINT_SERVICE_MSG_MSEC       1000
 
 #define PIPE_WRITE_ADDRESS           0xF0F0F0F0E1LL
@@ -209,7 +209,7 @@ void processIncomingData()
 
 bool processReceivedServicePacket(bool (*handlerPacket)(float*))
 {
-  const size_t currTime = millis();
+  const unsigned long currTime = millis();
 
   while(true)
   {
@@ -219,7 +219,7 @@ bool processReceivedServicePacket(bool (*handlerPacket)(float*))
       float* const servicePacket = getServicePacket(currDisplayedModuleId);
 
       if(servicePacket[6] == -1 && checkIncomingDataIntegrity())
-      { //Проверяем на -1, т.к. это значит, что данные пакета записались в массив текущего модуля. В этом элементе массива по протоколу всегда -1            
+      { //Проверяем на -1, т.к. это значит, что данные пакета записались в массив текущего модуля. В этом элементе массива по протоколу всегда -1   
         return handlerPacket(servicePacket);
       }
     }
@@ -248,7 +248,7 @@ void sendActionPacket(float* actionPacket)
 bool attemptSendActionPacket(float* actionPacket)
 {
   radio.stopListening();
-  radio.writeFast(actionPacket, DATA_SEGMENT_LENGTH_B, true);
+  radio.write(actionPacket, DATA_SEGMENT_LENGTH_B, true);
   radio.startListening();
 
   const bool wasReceivedResponse = processReceivedServicePacket(handlerCorrectServicePacket);
@@ -271,6 +271,7 @@ bool attemptSendActionPacket(float* actionPacket)
 
 bool handlerCorrectServicePacket(float* servicePacket)
 {
+  debugServicePacket(servicePacket);
   const SERVICE_MSG_TYPE msgType = static_cast<SERVICE_MSG_TYPE>(servicePacket[3]);
   if(msgType == SERVICE_MSG_TYPE::GET_ERROR_COMMAND){    
     printDisplayModuleServiceMsg(msgType);
@@ -370,7 +371,7 @@ bool isCompleteDataPacket(MODULE_ID moduleId)
   if(!dataPacket) 
     return false;
 
-  return dataPacket[0][6] == 0 && dataPacket[0][6] == 1 && dataPacket[0][6] == 2;
+  return dataPacket[0][6] == 0 && dataPacket[1][6] == 1 && dataPacket[2][6] == 2;
 }
 
 void resetCurrIncomingPacket()

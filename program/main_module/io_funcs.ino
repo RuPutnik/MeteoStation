@@ -103,18 +103,15 @@ void printDisplayExecuteCommandStatus(bool executed)
   resetDisplay();
   updateDisplayHeader();
 
-  lcd.setCursor(2, 6);
-  lcd.print("Command");
-
   if(executed)
   {
-    lcd.setCursor(3, 6);
-    lcd.print("executed");
+    lcd.setCursor(2, 2);
+    lcd.print("Command executed");
   }
   else
   {
-    lcd.setCursor(3, 7);
-    lcd.print("failed");
+    lcd.setCursor(3, 2);
+    lcd.print("Command failed");
   }
   delay(PRINT_SERVICE_MSG_MSEC);
 }
@@ -124,7 +121,7 @@ void printDisplayModuleServiceMsg(SERVICE_MSG_TYPE typeServicePacket, float valu
   resetDisplay();
   updateDisplayHeader();
 
-  lcd.setCursor(2, 0);
+  lcd.setCursor(0, 2);
   switch(typeServicePacket)
   {
     case SERVICE_MSG_TYPE::START_MODULE_SUCCESS:
@@ -275,7 +272,7 @@ void bottomLeftButtonHandler()
   else
   {
     fillActionPacket(currCommand, actionPacket);
-    //sendActionPacket(actionPacket);
+    sendActionPacket(actionPacket);
     memset(actionPacket, 0, DATA_SEGMENT_LENGTH_B);
   }
 }
@@ -328,11 +325,11 @@ String formPressureMsg()
       scaleName = " Pa";
     }
 
-    return "Pressure = " + static_cast<String>(pressureValue) + scaleName;
+    return "Press = " + static_cast<String>(pressureValue) + scaleName;
   }
   else
   {
-    return "Pressure = <?>";
+    return "Press = <?>";
   }
 }
 
@@ -351,10 +348,10 @@ String formHumidityMsg()
   }
   else
   {
-    return "Relative wet = <?>";
+    return "Relat wet = <?>";
   }
 
-  return "Relative wet = " + static_cast<String>(humidityValue) + "%";
+  return "Relat wet = " + static_cast<String>(humidityValue) + "%";
 }
 
 String formSolarMsg()
