@@ -1,12 +1,4 @@
-#ifndef SERVICE_FUNCS
-#define SERVICE_FUNCS
-
 //Служебные функции
-void resetDetectorMap(bool* detectorMap){
-  for(int i=0;i<COUNT_DETECTOR;i++){
-    detectorMap[i]=true;
-  }
-}
 
 float normalize(int value){
   return value/1024.0;  
@@ -61,5 +53,3 @@ void fillIncomingActionPacket(float* incomingPacket, COMMANDS_TYPE command, floa
   incomingPacket[6] = 0;
   incomingPacket[7] = calcCheckSum(incomingPacket, DATA_SEGMENT_LENGTH);
 }
-
-#endif

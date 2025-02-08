@@ -35,7 +35,6 @@ unsigned long sendDataIntervalsMsec[COUNT_SEND_DATA_INTERVALS]{1000, 5000, 10000
 float** dataPacket = nullptr;
 float servicePacket[DATA_SEGMENT_LENGTH];
 float actionPacket[DATA_SEGMENT_LENGTH];
-bool detectorMap[COUNT_DETECTOR];
 float numberPacket;
 unsigned long prevTime;
 
@@ -48,25 +47,19 @@ enum COMMANDS_TYPE{
   RESTART_ALL          = 1,
   TURNOFF_RADIO        = 2,
   CHANGE_SEND_INTERVAL = 3,
-  STOP_SEND_DATA       = 4,
-  RESUME_SEND_DATA     = 5,
-  GET_DETECTOR_MAP     = 6,
-  GET_TIME_INTERVAL    = 7,
-  GET_LIFE_TIME        = 8, //в миллисек.
-  HEARTBEAT            = 9
+  GET_TIME_INTERVAL    = 4,
+  GET_LIFE_TIME        = 5, //в миллисек.
+  HEARTBEAT            = 6
 };
 
 enum SERVICE_MSG_TYPE{
   START_MODULE_SUCCESS = 1,
   SUCCESS_GET_COMMAND  = 2,
   ERROR_START_DETECTOR = 3,
-  REPORT_DETECTOR_MAP  = 4,
-  REPORT_TIME_INTERVAL = 5,
-  REPORT_LIFE_TIME     = 6,
-  GET_ERROR_COMMAND    = 7
+  REPORT_TIME_INTERVAL = 4,
+  REPORT_LIFE_TIME     = 5,
+  GET_ERROR_COMMAND    = 6
 };
-
-
 
 //Главные функции
 void setup() {
@@ -75,7 +68,6 @@ void setup() {
   numberPacket = 0;
   prevTime = 0;
   currSendDataIntervalIndex = 2; //По умолчанию используем интервал 10сек (10 000 мсек)
-  resetDetectorMap(detectorMap);
 
   if(!dataPacket){
     dataPacket = new float*[COUNT_SEGMENTS_IN_PACKET];
@@ -149,15 +141,6 @@ void analyzeIncomingPacket(float* packet){
     case COMMANDS_TYPE::CHANGE_SEND_INTERVAL:
       changeSendInterval(); //Параметр можно менять на одно из фиксированного набора значений по кругу 
     break;
-    case COMMANDS_TYPE::STOP_SEND_DATA:
-      stopSendData(static_cast<int>(packet[4])); //Возможно, не получится реализовать. Сложно вводить числа на блоке управления
-    break;
-    case COMMANDS_TYPE::RESUME_SEND_DATA:
-      resumeSendData((int)packet[4]); //Возможно, не получится реализовать. Сложно вводить числа на блоке управления
-    break;
-    case COMMANDS_TYPE::GET_DETECTOR_MAP:
-      returnDetectorMap();
-    break;
     case COMMANDS_TYPE::GET_TIME_INTERVAL:
       returnCurrentTimeInterval();
     break;
@@ -227,19 +210,6 @@ void fillServicePacketESD(float* packet, short numErrDetector){
   fillHeaderAndTailServicePacket(packet);
 }
 
-void fillServicePacketRDM(float* packet, bool* detectorMap){
-  packet[3] = SERVICE_MSG_TYPE::REPORT_DETECTOR_MAP;
-  uint32_t bitMapDetector=0;
-
-  for(int i=0; i<COUNT_DETECTOR; i++){
-    //Заполняем побитово 4-байтовое целое беззнаковое, оставляя 3 старших байтах и 2 старших бита младшего байта неиспользованными
-    bitMapDetector |= (static_cast<uint32_t>(detectorMap[i]) << i);
-  }
-  packet[4] = bitMapDetector;
-
-  fillHeaderAndTailServicePacket(packet);
-}
-
 void fillServicePacketRTI(float* packet, int currentTimeIntervalMsec){
   packet[3] = SERVICE_MSG_TYPE::REPORT_TIME_INTERVAL;
   packet[4] = currentTimeIntervalMsec;
@@ -280,19 +250,6 @@ void changeSendInterval(){
   currSendDataIntervalIndex = (currSendDataIntervalIndex > 0) ? currSendDataIntervalIndex - 1 : COUNT_SEND_DATA_INTERVALS - 1;
 }
 
-void stopSendData(int numberDetector){
-  detectorMap[numberDetector] = false;
-}
-
-void resumeSendData(int numberDetector){
-  detectorMap[numberDetector] = true;
-}
-
-void returnDetectorMap(){
-  fillServicePacketRDM(servicePacket, detectorMap);
-  sendPacketService(servicePacket);
-}
-
 void returnCurrentTimeInterval(){
   fillServicePacketRTI(servicePacket, sendDataIntervalsMsec[currSendDataIntervalIndex]);
   sendPacketService(servicePacket);
@@ -318,36 +275,12 @@ void fillDataPacket(float** dataArray){
   memmove(dataArray[1], dataArray[0], 3 * sizeof(float)); //Копируем данные в оставшиеся сегменты пакета
   memmove(dataArray[2], dataArray[0], 3 * sizeof(float));
 
-  dataArray[0][3] = -1;
-  dataArray[0][4] = -1;
-  dataArray[1][3] = -1;
-  dataArray[1][4] = -1;
-  dataArray[2][3] = -1;
-  dataArray[2][4] = -1;
-
-  if(detectorMap[0]){
-    dataArray[0][3] = getTemperatureValue();
-  }
-
-  if(detectorMap[1]){
-    dataArray[0][4] = getHumidityValue();
-  }
-
-  if(detectorMap[2]){
-    dataArray[1][3] = getRainValue();
-  }
-
-  if(detectorMap[3]){
-    dataArray[1][4] = getPressureValue();
-  }
-
-  if(detectorMap[4]){
-    dataArray[2][3] = getSolarValue();
-  }
-
-  if(detectorMap[5]){
-    dataArray[2][4] = getUVValue();
-  }
+  dataArray[0][3] = getTemperatureValue();
+  dataArray[0][4] = getHumidityValue();
+  dataArray[1][3] = getRainValue();
+  dataArray[1][4] = getPressureValue();
+  dataArray[2][3] = getSolarValue();
+  dataArray[2][4] = getUVValue();
 
   dataArray[0][5] = numberPacket;
   dataArray[1][5] = numberPacket;

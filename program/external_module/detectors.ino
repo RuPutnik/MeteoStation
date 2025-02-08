@@ -1,6 +1,3 @@
-#ifndef DETECTORS
-#define DETECTORS
-
 sensors_event_t humidityEvent, tempEvent;
 
 //Функции получения данных
@@ -33,5 +30,3 @@ float getUVValue(){
 float getRainValue(){
   return analogRead(RAIN_DETECT_PORT);
 }
-
-#endif
