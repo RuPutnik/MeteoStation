@@ -116,6 +116,7 @@ void printDisplayExecuteCommandStatus(bool executed)
     lcd.setCursor(3, 7);
     lcd.print("failed");
   }
+  delay(PRINT_SERVICE_MSG_MSEC);
 }
 
 void printDisplayModuleServiceMsg(SERVICE_MSG_TYPE typeServicePacket, float valueParam = 0)
@@ -127,16 +128,13 @@ void printDisplayModuleServiceMsg(SERVICE_MSG_TYPE typeServicePacket, float valu
   switch(typeServicePacket)
   {
     case SERVICE_MSG_TYPE::START_MODULE_SUCCESS:
-
+      //TODO
       break;
     case SERVICE_MSG_TYPE::SUCCESS_GET_COMMAND:
-
+      //TODO
       break;
     case SERVICE_MSG_TYPE::ERROR_START_DETECTOR:
-
-      break;
-    case SERVICE_MSG_TYPE::REPORT_DETECTOR_MAP:
-      lcd.print(String{"Detector map:"} + String{valueParam});
+      //TODO
       break;
     case SERVICE_MSG_TYPE::REPORT_TIME_INTERVAL:
       lcd.print(String{"Send interv:"} + String{valueParam});
@@ -145,12 +143,13 @@ void printDisplayModuleServiceMsg(SERVICE_MSG_TYPE typeServicePacket, float valu
       lcd.print(String{"Lifetime:"} + String{valueParam});
       break;
     case SERVICE_MSG_TYPE::GET_ERROR_COMMAND:
-
+      //TODO
       break;
     default:
       lcd.print("Unknown msg type!");
       break;
   }
+  delay(PRINT_SERVICE_MSG_MSEC);
 }
 
 void addButtonHandler(KEY_PORT port, void (*handlerPtr)()){
@@ -482,12 +481,6 @@ String formCommandMsg(COMMANDS_TYPE commandId)
       return "Disable radio";
     case CHANGE_SEND_INTERVAL:
       return "Change send interv";
-    case STOP_SEND_DATA:
-      return "Stop sending";
-    case RESUME_SEND_DATA:
-      return "Resume sending";
-    case GET_DETECTOR_MAP:
-      return "Get detector map";
     case GET_TIME_INTERVAL:
       return "Get send interv";
     case GET_LIFE_TIME:

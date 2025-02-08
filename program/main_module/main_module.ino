@@ -48,12 +48,9 @@ enum COMMANDS_TYPE: uint8_t
   RESTART_ALL          = 1,
   TURNOFF_RADIO        = 2,
   CHANGE_SEND_INTERVAL = 3,
-  STOP_SEND_DATA       = 4,
-  RESUME_SEND_DATA     = 5,
-  GET_DETECTOR_MAP     = 6,
-  GET_TIME_INTERVAL    = 7,
-  GET_LIFE_TIME        = 8, //в миллисек.
-  HEARTBEAT            = 9
+  GET_TIME_INTERVAL    = 4,
+  GET_LIFE_TIME        = 5, //в миллисек.
+  HEARTBEAT            = 6
 };
 
 enum SERVICE_MSG_TYPE: uint8_t
@@ -61,10 +58,9 @@ enum SERVICE_MSG_TYPE: uint8_t
   START_MODULE_SUCCESS = 1,
   SUCCESS_GET_COMMAND  = 2,
   ERROR_START_DETECTOR = 3,
-  REPORT_DETECTOR_MAP  = 4,
-  REPORT_TIME_INTERVAL = 5,
-  REPORT_LIFE_TIME     = 6,
-  GET_ERROR_COMMAND    = 7
+  REPORT_TIME_INTERVAL = 4,
+  REPORT_LIFE_TIME     = 5,
+  GET_ERROR_COMMAND    = 6
 };
 
 enum WORK_MODE: uint8_t
@@ -247,7 +243,6 @@ void sendActionPacket(float* actionPacket)
   }
 
   printDisplayExecuteCommandStatus(false);
-  delay(PRINT_SERVICE_MSG_MSEC);
 }
 
 bool attemptSendActionPacket(float* actionPacket)
@@ -262,8 +257,7 @@ bool attemptSendActionPacket(float* actionPacket)
   }
 
   const COMMANDS_TYPE commandType = static_cast<COMMANDS_TYPE>(actionPacket[3]);
-  if(commandType == COMMANDS_TYPE::GET_DETECTOR_MAP ||
-     commandType == COMMANDS_TYPE::GET_TIME_INTERVAL ||
+  if(commandType == COMMANDS_TYPE::GET_TIME_INTERVAL ||
      commandType == COMMANDS_TYPE::GET_LIFE_TIME)
   {
     return processReceivedServicePacket(readModuleServiceParam);
@@ -271,7 +265,6 @@ bool attemptSendActionPacket(float* actionPacket)
   else
   {
     printDisplayExecuteCommandStatus(true);
-    delay(PRINT_SERVICE_MSG_MSEC);
     return true; 
   }
 }
@@ -281,7 +274,6 @@ bool handlerCorrectServicePacket(float* servicePacket)
   const SERVICE_MSG_TYPE msgType = static_cast<SERVICE_MSG_TYPE>(servicePacket[3]);
   if(msgType == SERVICE_MSG_TYPE::GET_ERROR_COMMAND){    
     printDisplayModuleServiceMsg(msgType);
-    delay(PRINT_SERVICE_MSG_MSEC);
   }
 
   return msgType == SERVICE_MSG_TYPE::SUCCESS_GET_COMMAND;
@@ -290,14 +282,12 @@ bool handlerCorrectServicePacket(float* servicePacket)
 bool readModuleServiceParam(float* servicePacket)
 {
   const SERVICE_MSG_TYPE msgType = static_cast<SERVICE_MSG_TYPE>(servicePacket[3]);
-  if(msgType != SERVICE_MSG_TYPE::REPORT_DETECTOR_MAP &&
-     msgType != SERVICE_MSG_TYPE::REPORT_TIME_INTERVAL &&
+  if(msgType != SERVICE_MSG_TYPE::REPORT_TIME_INTERVAL &&
      msgType != SERVICE_MSG_TYPE::REPORT_LIFE_TIME){
        return false;
   }
 
   printDisplayModuleServiceMsg(msgType, servicePacket[4]);
-  delay(PRINT_SERVICE_MSG_MSEC);
   return true;
 }
 
