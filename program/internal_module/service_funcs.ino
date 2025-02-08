@@ -1,19 +1,16 @@
-#ifndef SERVICE_FUNCS
-#define SERVICE_FUNCS
-
 //Служебные функции
 void resetDetectorMap(bool* detectorMap){
   for(int i=0;i<COUNT_DETECTOR;i++){
-    detectorMap[i]=true;
+    detectorMap[i] = true;
   }
 }
 
 float normalize(int value){
-  return value/1024.0;  
+  return value / 1024.0;  
 }
 
 float calcCheckSum(float* data, int sizeData){
-  float sum=0;
+  float sum = 0;
   for(int i=0;i<sizeData-1;i++){
     sum += data[i]; //Можно считать с дробями т.к. на обоих модулях алгоритм подсчета одинаков и числа должны совпасть
   }
@@ -61,5 +58,3 @@ void fillIncomingActionPacket(float* incomingPacket, COMMANDS_TYPE command, floa
   incomingPacket[6] = 0;
   incomingPacket[7] = calcCheckSum(incomingPacket, DATA_SEGMENT_LENGTH);
 }
-
-#endif

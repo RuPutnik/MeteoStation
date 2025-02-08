@@ -1,6 +1,3 @@
-#ifndef DETECTORS
-#define DETECTORS
-
 sensors_event_t humidityEvent, tempEvent;
 
 //Функции получения данных
@@ -25,5 +22,3 @@ float getMQ135Value(){
 
   return mq135_sensor.getCorrectedPPM(temperature, humidity);
 }
-
-#endif
