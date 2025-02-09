@@ -219,7 +219,8 @@ bool processReceivedServicePacket(bool (*handlerPacket)(float*))
       float* const servicePacket = getServicePacket(currDisplayedModuleId);
 
       if(servicePacket[6] == -1 && checkIncomingDataIntegrity())
-      { //Проверяем на -1, т.к. это значит, что данные пакета записались в массив текущего модуля. В этом элементе массива по протоколу всегда -1   
+      { //Проверяем на -1, т.к. это значит, что данные пакета записались в массив текущего модуля. 
+        //В этом элементе массива по протоколу всегда -1. А если запись не произошла, то там будет начальный 0
         return handlerPacket(servicePacket);
       }
     }
@@ -242,7 +243,7 @@ void sendActionPacket(float* actionPacket)
     }
   }
 
-  printDisplayExecuteCommandStatus(false);
+  printDisplayFailDeliveryCommand();
 }
 
 bool attemptSendActionPacket(float* actionPacket)
@@ -264,7 +265,7 @@ bool attemptSendActionPacket(float* actionPacket)
   } 
   else
   {
-    printDisplayExecuteCommandStatus(true);
+    printDisplayModuleServiceMsg(SERVICE_MSG_TYPE::SUCCESS_GET_COMMAND);
     return true; 
   }
 }
@@ -283,13 +284,13 @@ bool handlerCorrectServicePacket(float* servicePacket)
 bool readModuleServiceParam(float* servicePacket)
 {
   const SERVICE_MSG_TYPE msgType = static_cast<SERVICE_MSG_TYPE>(servicePacket[3]);
-  if(msgType != SERVICE_MSG_TYPE::REPORT_TIME_INTERVAL &&
-     msgType != SERVICE_MSG_TYPE::REPORT_LIFE_TIME){
-       return false;
+  if(msgType == SERVICE_MSG_TYPE::REPORT_TIME_INTERVAL ||
+     msgType == SERVICE_MSG_TYPE::REPORT_LIFE_TIME){
+      printDisplayModuleServiceMsg(msgType, servicePacket[4]);
+      return true;
   }
 
-  printDisplayModuleServiceMsg(msgType, servicePacket[4]);
-  return true;
+  return false;
 }
 
 bool analyzeIncomingPacket(float* packet)

@@ -98,21 +98,13 @@ void updateDisplayContentCommands()
   }
 }
 
-void printDisplayExecuteCommandStatus(bool executed)
+void printDisplayFailDeliveryCommand()
 {
   resetDisplay();
   updateDisplayHeader();
 
-  if(executed)
-  {
-    lcd.setCursor(2, 2);
-    lcd.print("Command executed");
-  }
-  else
-  {
-    lcd.setCursor(3, 2);
-    lcd.print("Command failed");
-  }
+  lcd.setCursor(3, 2);
+  lcd.print("Command failed");
   delay(PRINT_SERVICE_MSG_MSEC);
 }
 
@@ -121,31 +113,35 @@ void printDisplayModuleServiceMsg(SERVICE_MSG_TYPE typeServicePacket, float valu
   resetDisplay();
   updateDisplayHeader();
 
+  char printBuffer[20];
+
   lcd.setCursor(0, 2);
   switch(typeServicePacket)
   {
     case SERVICE_MSG_TYPE::START_MODULE_SUCCESS:
-      //TODO
+      sprintf(printBuffer, "Module %d started", static_cast<int>(valueParam));
       break;
     case SERVICE_MSG_TYPE::SUCCESS_GET_COMMAND:
-      //TODO
+      lcd.setCursor(2, 2);
+      strcpy(printBuffer, "Command executed");
       break;
     case SERVICE_MSG_TYPE::ERROR_START_DETECTOR:
-      //TODO
+      sprintf(printBuffer, "Error start %d sensor", static_cast<int>(valueParam));
       break;
     case SERVICE_MSG_TYPE::REPORT_TIME_INTERVAL:
-      lcd.print(String{"Send interv:"} + String{valueParam});
+      sprintf(printBuffer, "Send interval: %d", static_cast<int>(valueParam));
       break;
     case SERVICE_MSG_TYPE::REPORT_LIFE_TIME:
-      lcd.print(String{"Lifetime:"} + String{valueParam});
+      sprintf(printBuffer, "Lifetime: %d", static_cast<int>(valueParam));
       break;
     case SERVICE_MSG_TYPE::GET_ERROR_COMMAND:
-      //TODO
+      strcpy(printBuffer, "Incorrect command");
       break;
     default:
-      lcd.print("Unknown msg type!");
+      strcpy(printBuffer, "Unknown msg type");
       break;
   }
+  lcd.print(printBuffer);
   delay(PRINT_SERVICE_MSG_MSEC);
 }
 
@@ -274,6 +270,7 @@ void bottomLeftButtonHandler()
     fillActionPacket(currCommand, actionPacket);
     sendActionPacket(actionPacket);
     memset(actionPacket, 0, DATA_SEGMENT_LENGTH_B);
+    resetServiceBuffer(currDisplayedModuleId);
   }
 }
 
