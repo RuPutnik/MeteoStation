@@ -124,14 +124,18 @@ void analyzeIncomingPacket(float* packet){
   Serial.println("=== START ANALYZE INCOMING ===");
   debugActionPacket(packet);
 
-  if(packet[0]!=MODULE_ID) return; //Проверка, что данный пакет предназначен текущему модулю
-  if(packet[1]!=CENTRAL_MODULE_ID) return; //Проверка, что данный пакет поступил от главного модуля
-  if(packet[2]!=TYPE_PACKET::CONTROL) return; //Проверка, что данный пакет имеет тип 'управляющий'
-  if(packet[7]!=calcCheckSum(packet, DATA_SEGMENT_LENGTH)) return; //Проверка на контрольную сумму пакета
+  if(packet[0] != MODULE_ID) return; //Проверка, что данный пакет предназначен текущему модулю
+  if(packet[1] != CENTRAL_MODULE_ID) return; //Проверка, что данный пакет поступил от главного модуля
+  if(packet[2] != TYPE_PACKET::CONTROL) return; //Проверка, что данный пакет имеет тип 'управляющий'
+  if(packet[7] != calcCheckSum(packet, DATA_SEGMENT_LENGTH)) return; //Проверка на контрольную сумму пакета
 
-  sendReceipt(); //Посылаем главному модулю квитанцию, что получили его команду
-  Serial.println((String)"PACKET ACTION TYPE : " + (int)packet[3]);
-  switch((int)packet[3]){
+  const COMMANDS_TYPE type = static_cast<COMMANDS_TYPE>(packet[3]);
+  Serial.println((String)"PACKET ACTION TYPE : " + type);
+  if(type >= COMMANDS_TYPE::RESTART_ALL && type <= COMMANDS_TYPE::HEARTBEAT){
+    sendReceipt();
+  }
+
+  switch(type){
     case COMMANDS_TYPE::RESTART_ALL:
       restartAll();
     break;
