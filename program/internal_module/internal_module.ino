@@ -36,6 +36,7 @@ float servicePacket[DATA_SEGMENT_LENGTH];
 float actionPacket[DATA_SEGMENT_LENGTH];
 float numberPacket;
 unsigned long prevTime;
+bool sendTmData;
 
 enum TYPE_PACKET{
   DATA    = 1,
@@ -45,7 +46,7 @@ enum TYPE_PACKET{
 
 enum COMMANDS_TYPE{
   RESTART_ALL          = 1,
-  TURNOFF_RADIO        = 2,
+  STOP_START_SEND      = 2,
   CHANGE_SEND_INTERVAL = 3,
   GET_TIME_INTERVAL    = 4,
   GET_LIFE_TIME        = 5, //в миллисек.
@@ -68,6 +69,7 @@ void setup() {
   numberPacket = 0;
   prevTime = 0;
   currSendDataIntervalIndex = 2; //По умолчанию используем интервал 10сек (10 000 мсек)
+  sendTmData = true;
 
   if(!dataPacket){
     dataPacket = new float*[COUNT_SEGMENTS_IN_PACKET];
@@ -92,7 +94,7 @@ void setup() {
 }
 
 void loop() {
-  if((millis()-prevTime) >= sendDataIntervalsMsec[currSendDataIntervalIndex]){
+  if(sendTmData && (millis()-prevTime) >= sendDataIntervalsMsec[currSendDataIntervalIndex]){
     Serial.println("=== FORM DATA PACKET ===");
     //формируем массив данных
     fillDataPacket((float**)dataPacket);
@@ -102,7 +104,7 @@ void loop() {
     debugDataPacket((float**)dataPacket);
     sendPacketData((float**)dataPacket);
 
-    prevTime=millis();
+    prevTime = millis();
   }
 
    Serial.println("=== READ PACKET ===");
@@ -138,8 +140,8 @@ void analyzeIncomingPacket(float* packet){
     case COMMANDS_TYPE::RESTART_ALL:
       restartAll();
     break;
-    case COMMANDS_TYPE::TURNOFF_RADIO:
-      stopRadio();
+    case COMMANDS_TYPE::STOP_START_SEND:
+      sendTmData = !sendTmData;
     break;
     case COMMANDS_TYPE::CHANGE_SEND_INTERVAL:
       changeSendInterval(); //Параметр можно менять на одно из фиксированного набора значений по кругу 
@@ -215,7 +217,7 @@ void fillServicePacketESD(float* packet, short numErrDetector){
 
 void fillServicePacketRTI(float* packet, int currentTimeIntervalMsec){
   packet[3] = SERVICE_MSG_TYPE::REPORT_TIME_INTERVAL;
-  packet[4] = currentTimeIntervalMsec;
+  packet[4] = (sendTmData ? currentTimeIntervalMsec : -1);
 
   fillHeaderAndTailServicePacket(packet);
 }
