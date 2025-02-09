@@ -46,7 +46,7 @@ enum TYPE_PACKET: uint8_t
 enum COMMANDS_TYPE: uint8_t
 {
   RESTART_ALL          = 1,
-  TURNOFF_RADIO        = 2,
+  STOP_START_SEND      = 2,
   CHANGE_SEND_INTERVAL = 3,
   GET_TIME_INTERVAL    = 4,
   GET_LIFE_TIME        = 5, //в миллисек.
@@ -109,7 +109,7 @@ MODULE_ID currPacketModuleId = MODULE_ID::INCORRECT_MODULE_ID;
 MODULE_ID currDisplayedModuleId = MODULE_ID::INTERNAL_MODULE_ID;
 WORK_MODE currWorkMode  = WORK_MODE::SHOW_METEO_DATA;
 SHOW_DATA_MODE currShowDataMode = SHOW_DATA_MODE::CLASSIC;
-COMMANDS_TYPE currCommand = COMMANDS_TYPE::TURNOFF_RADIO;
+COMMANDS_TYPE currCommand = COMMANDS_TYPE::STOP_START_SEND;
 uint8_t currMeteoParam;
 float currNumOutPacket;
 

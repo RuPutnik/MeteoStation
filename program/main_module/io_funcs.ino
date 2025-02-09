@@ -129,10 +129,10 @@ void printDisplayModuleServiceMsg(SERVICE_MSG_TYPE typeServicePacket, float valu
       sprintf(printBuffer, "Error start %d sensor", static_cast<int>(valueParam));
       break;
     case SERVICE_MSG_TYPE::REPORT_TIME_INTERVAL:
-      sprintf(printBuffer, "Send interval: %d", static_cast<int>(valueParam));
+      sprintf(printBuffer, "Send interval: %ld", static_cast<long int>(valueParam));
       break;
     case SERVICE_MSG_TYPE::REPORT_LIFE_TIME:
-      sprintf(printBuffer, "Lifetime: %d", static_cast<int>(valueParam));
+      sprintf(printBuffer, "Lifetime: %lu", static_cast<unsigned long int>(valueParam));
       break;
     case SERVICE_MSG_TYPE::GET_ERROR_COMMAND:
       strcpy(printBuffer, "Incorrect command");
@@ -233,7 +233,7 @@ void centerButtonHandler()
   }
 
   currMeteoParam = 1;
-  currCommand = COMMANDS_TYPE::TURNOFF_RADIO;
+  currCommand = COMMANDS_TYPE::STOP_START_SEND;
 }
 
 void topLeftButtonHandler()
@@ -247,7 +247,7 @@ void topLeftButtonHandler()
   }
 
   currMeteoParam = 1;
-  currCommand = COMMANDS_TYPE::TURNOFF_RADIO;
+  currCommand = COMMANDS_TYPE::STOP_START_SEND;
 }
 
 void bottomLeftButtonHandler()
@@ -471,8 +471,8 @@ String formCommandMsg(COMMANDS_TYPE commandId)
   switch(commandId){
     case RESTART_ALL:
       return "Restart module";
-    case TURNOFF_RADIO:
-      return "Disable radio";
+    case STOP_START_SEND:
+      return "Stop/start send";
     case CHANGE_SEND_INTERVAL:
       return "Change send interv";
     case GET_TIME_INTERVAL:
