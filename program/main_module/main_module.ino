@@ -9,16 +9,16 @@
 #define PIPE_WRITE_ADDRESS           0xF0F0F0F0E1LL
 #define PIPE_READ_ADDRESS_EXTERNAL   0xF0F0F0F0E2LL
 #define PIPE_READ_ADDRESS_INTERNAL   0xF0F0F0F0E3LL
+#define LCD2004_ADDRESS              0x3F
 
-#define COUNT_SEGMENTS_IN_PACKET   3
-#define COUNT_METEO_PARAM_EXTERNAL 6
-#define COUNT_METEO_PARAM_INTERNAL 4
-#define COUNT_ATTEMPT_SEND_ACTION  3
+#define COUNT_SEGMENTS_IN_PACKET     3
+#define COUNT_METEO_PARAM_EXTERNAL   6
+#define COUNT_METEO_PARAM_INTERNAL   4
+#define COUNT_ATTEMPT_SEND_ACTION    3
+#define COUNT_KEYS                   5
 
-#define RADIO_CE_PIN               8
-#define RADIO_CSN_PIN              9
-#define LCD2004_ADDRESS            0x3F
-#define COUNT_KEYS                 5
+#define RADIO_CE_PIN                 8
+#define RADIO_CSN_PIN                9
 
 enum WORK_MODE: uint8_t
 {
