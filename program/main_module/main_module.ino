@@ -1,11 +1,8 @@
-#include <SPI.h>
-#include <RF24.h>
 #include <microDS3231.h>
 #include <LiquidCrystal_I2C.h>
+#include <general.h>
 
-#define LOOP_DELAY_MSEC              10
 #define KEY_POSTHANDLE_DELAY_MSEC    1000
-#define SETUP_DELAY                  2000
 #define WAIT_ACK_REC_COMMAND_MSEC    2000
 #define PRINT_SERVICE_MSG_MSEC       1000
 
@@ -13,10 +10,6 @@
 #define PIPE_READ_ADDRESS_EXTERNAL   0xF0F0F0F0E2LL
 #define PIPE_READ_ADDRESS_INTERNAL   0xF0F0F0F0E3LL
 
-#define SERIAL_SPEED               9600
-#define RADIO_CHANNEL_NUMBER       8
-#define DATA_SEGMENT_LENGTH        8
-#define DATA_SEGMENT_LENGTH_B      DATA_SEGMENT_LENGTH * sizeof(float)  //32
 #define COUNT_SEGMENTS_IN_PACKET   3
 #define COUNT_METEO_PARAM_EXTERNAL 6
 #define COUNT_METEO_PARAM_INTERNAL 4
@@ -26,42 +19,6 @@
 #define RADIO_CSN_PIN              9
 #define LCD2004_ADDRESS            0x3F
 #define COUNT_KEYS                 5
-
-enum MODULE_ID: uint8_t
-{
-  CENTRAL_MODULE_ID     = 0,
-  INTERNAL_MODULE_ID    = 1,
-  EXTERNAL_MODULE_ID    = 2,
-  INCORRECT_MODULE_ID   = 3
-};
-
-enum TYPE_PACKET: uint8_t
-{
-  DATA    = 1,
-  CONTROL = 2,
-  SERVICE = 3,
-  UNKNOWN = 4
-};
-
-enum COMMANDS_TYPE: uint8_t
-{
-  RESTART_ALL          = 1,
-  STOP_START_SEND      = 2,
-  CHANGE_SEND_INTERVAL = 3,
-  GET_TIME_INTERVAL    = 4,
-  GET_LIFE_TIME        = 5, //в миллисек.
-  HEARTBEAT            = 6
-};
-
-enum SERVICE_MSG_TYPE: uint8_t
-{
-  START_MODULE_SUCCESS = 1,
-  SUCCESS_GET_COMMAND  = 2,
-  ERROR_START_DETECTOR = 3,
-  REPORT_TIME_INTERVAL = 4,
-  REPORT_LIFE_TIME     = 5,
-  GET_ERROR_COMMAND    = 6
-};
 
 enum WORK_MODE: uint8_t
 {

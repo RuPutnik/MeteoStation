@@ -1,23 +1,12 @@
-#include <Wire.h>
-#include <SPI.h>
-#include <RF24.h>
 #include <Adafruit_AHT10.h>
 #include <Adafruit_BMP280.h>
+#include <general.h>
 
-#define LOOP_DELAY_MSEC            10
 #define COUNT_DETECTOR             6
-#define START_DELAY_MSEC           3000
-#define PIPE_READ_ADDRESS          0xF0F0F0F0E1LL
-#define PIPE_WRITE_ADDRESS         0xF0F0F0F0E2LL
-#define SERIAL_SPEED               9600
-#define RADIO_CHANNEL_NUMBER       8
-#define DATA_SEGMENT_LENGTH        8
-#define DATA_SEGMENT_LENGTH_B      (DATA_SEGMENT_LENGTH * sizeof(float))  //32
-#define COUNT_SEGMENTS_IN_PACKET   3
 #define COUNT_SEND_DATA_INTERVALS  4
 
-#define CENTRAL_MODULE_ID          0
-#define MODULE_ID                  2
+#define PIPE_READ_ADDRESS          0xF0F0F0F0E1LL
+#define PIPE_WRITE_ADDRESS         0xF0F0F0F0E2LL
 
 #define RAIN_DETECT_PORT           A0
 #define TEMT6000_PORT              A1
@@ -38,29 +27,6 @@ float actionPacket[DATA_SEGMENT_LENGTH];
 float numberPacket;
 unsigned long prevTime;
 bool sendTmData;
-
-enum TYPE_PACKET{
-  DATA    = 1,
-  CONTROL = 2,
-  SERVICE = 3
-};
-enum COMMANDS_TYPE{
-  RESTART_ALL          = 1,
-  STOP_START_SEND      = 2,
-  CHANGE_SEND_INTERVAL = 3,
-  GET_TIME_INTERVAL    = 4,
-  GET_LIFE_TIME        = 5, //в миллисек.
-  HEARTBEAT            = 6
-};
-
-enum SERVICE_MSG_TYPE{
-  START_MODULE_SUCCESS = 1,
-  SUCCESS_GET_COMMAND  = 2,
-  ERROR_START_DETECTOR = 3,
-  REPORT_TIME_INTERVAL = 4,
-  REPORT_LIFE_TIME     = 5,
-  GET_ERROR_COMMAND    = 6
-};
 
 //Главные функции
 void setup() {
@@ -85,7 +51,7 @@ void setup() {
   startAHT10();
   startBMP280();
   
-  delay(START_DELAY_MSEC);
+  delay(SETUP_DELAY);
   turnOffLED();
 
   //Сообщаем главному модулю, что мы успешно запустились
@@ -126,8 +92,8 @@ void analyzeIncomingPacket(float* packet){
   Serial.println("=== START ANALYZE INCOMING ===");
   debugActionPacket(packet);
 
-  if(packet[0] != MODULE_ID) return; //Проверка, что данный пакет предназначен текущему модулю
-  if(packet[1] != CENTRAL_MODULE_ID) return; //Проверка, что данный пакет поступил от главного модуля
+  if(packet[0] != MODULE_ID::EXTERNAL_MODULE_ID) return; //Проверка, что данный пакет предназначен текущему модулю
+  if(packet[1] != MODULE_ID::CENTRAL_MODULE_ID) return; //Проверка, что данный пакет поступил от главного модуля
   if(packet[2] != TYPE_PACKET::CONTROL) return; //Проверка, что данный пакет имеет тип 'управляющий'
   if(packet[7] != calcCheckSum(packet, DATA_SEGMENT_LENGTH)) return; //Проверка на контрольную сумму пакета
 
@@ -187,8 +153,8 @@ void sendReceipt(){
 
 //Функции формирования служебных пакетов
 void fillHeaderAndTailServicePacket(float* packet){
-  packet[0]=CENTRAL_MODULE_ID;
-  packet[1]=MODULE_ID;
+  packet[0]=MODULE_ID::CENTRAL_MODULE_ID;
+  packet[1]=MODULE_ID::EXTERNAL_MODULE_ID;
   packet[2]=TYPE_PACKET::SERVICE;
   packet[5]=numberPacket;
   packet[6]=-1;
@@ -274,8 +240,8 @@ void heartbeatReaction(){
 
 //Функция формирования пакета данных
 void fillDataPacket(float** dataArray){
-  dataArray[0][0] = CENTRAL_MODULE_ID;
-  dataArray[0][1] = MODULE_ID;
+  dataArray[0][0] = MODULE_ID::CENTRAL_MODULE_ID;
+  dataArray[0][1] = MODULE_ID::EXTERNAL_MODULE_ID;
   dataArray[0][2] = TYPE_PACKET::DATA;
 
   memmove(dataArray[1], dataArray[0], 3 * sizeof(float)); //Копируем данные в оставшиеся сегменты пакета

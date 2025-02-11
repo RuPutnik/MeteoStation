@@ -49,8 +49,8 @@ void debugActionPacket(float* packet){
 }
 
 void fillIncomingActionPacket(float* incomingPacket, COMMANDS_TYPE command, float paramValue){
-  incomingPacket[0] = MODULE_ID;
-  incomingPacket[1] = CENTRAL_MODULE_ID;
+  incomingPacket[0] = MODULE_ID::INTERNAL_MODULE_ID;
+  incomingPacket[1] = MODULE_ID::CENTRAL_MODULE_ID;
   incomingPacket[2] = TYPE_PACKET::CONTROL;
   incomingPacket[3] = command;
   incomingPacket[4] = paramValue;
