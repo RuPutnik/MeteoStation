@@ -115,21 +115,18 @@ void loop()
 {
   if(radio.available())
   {
-    processIncomingData();
+    const bool isCorrectData = processIncomingData();
 
-    if(currWorkMode == WORK_MODE::SHOW_METEO_DATA && 
-       isCompleteDataPacket(currDisplayedModuleId)){
-      updateDisplay();
-    }
+    if(isCorrectData)
+      displayIncomingData();
   }
 
-  //TODO Сервисные пакеты удаляются после логгирования\обработки, пакеты с данными живут до получения нового пакета
   buttonsHandler();
   updateDisplayHeader(); //Всегда обновляем первую строку, т.к. там выводится текущее время
   delay(LOOP_DELAY_MSEC);
 }
 
-void processIncomingData()
+bool processIncomingData()
 {
   Serial.println("Data Incoming!");
   radio.read(currIncomingData, DATA_SEGMENT_LENGTH_B);
@@ -142,25 +139,47 @@ void processIncomingData()
 
   if(!validIncomingData){
     Serial.println("DATA IS INVALID!");
-    return;
+    return false;
   }
 
   saveIncomingData(currIncomingData);
 
   if(currPacketType == TYPE_PACKET::DATA){
     //Если это сегмент пакета данных, анализ проводим только после получения сегмента 2, 
-    //иначе будет попытка работы с неполным пакетом данных
+    //иначе будет попытка работы с неполным пакетом данных. Пока условно считаем данные корректными
     if(currIncomingData[6] != (COUNT_SEGMENTS_IN_PACKET - 1)){
-      return;
+      return true;
     }
   }
     
   if(checkIncomingDataIntegrity()){
     Serial.println("Packet is Correct!");
     debugSavedIncomingPacket();
+    return true;
   }else{
     Serial.println("!!Packet is Corrupted!!");
     resetCurrIncomingPacket(); //Пакет поврежден - очищаем буфер, в который он был записан
+    return false;
+  }
+}
+
+void displayIncomingData()
+{
+  switch(currPacketType){
+    case TYPE_PACKET::DATA:
+      if(currWorkMode == WORK_MODE::SHOW_METEO_DATA && 
+         isCompleteDataPacket(currDisplayedModuleId)){
+        updateDisplay();  
+      }
+    break;
+    case TYPE_PACKET::SERVICE:
+    {
+      float* const servicePacket = getServicePacket(currPacketModuleId);
+      printDisplayModuleServiceMsg(static_cast<SERVICE_MSG_TYPE>(servicePacket[3]), servicePacket[4]);
+      break;
+    }
+    default:
+    break;
   }
 }
 
@@ -172,13 +191,11 @@ bool processReceivedServicePacket(bool (*handlerPacket)(float*))
   {
     if(radio.available())
     {
-      processIncomingData();
-      float* const servicePacket = getServicePacket(currDisplayedModuleId);
+      const bool isCorrectData = processIncomingData();
 
-      if(servicePacket[6] == -1 && checkIncomingDataIntegrity())
-      { //Проверяем на -1, т.к. это значит, что данные пакета записались в массив текущего модуля. 
-        //В этом элементе массива по протоколу всегда -1. А если запись не произошла, то там будет начальный 0
-        return handlerPacket(servicePacket);
+      if(isCorrectData && isCompleteServicePacket(currDisplayedModuleId))
+      { 
+        return handlerPacket(getServicePacket(currDisplayedModuleId));
       }
     }
 
@@ -309,14 +326,11 @@ bool checkIncomingDataIntegrity()
   switch(currPacketType){
     case TYPE_PACKET::DATA:
     {
-      float** dataPacket = getMeteoDataPacket(currPacketModuleId);
-      const float checkSum = calcFullCheckSum(dataPacket, DATA_SEGMENT_LENGTH);
-      return (checkSum == dataPacket[0][7] && checkSum == dataPacket[1][7] && checkSum == dataPacket[2][7]);
+      return isCompleteDataPacket(currPacketModuleId);
     }
     case TYPE_PACKET::SERVICE:
     {
-      float* servicePacket = getServicePacket(currPacketModuleId);
-      return calcCheckSum(servicePacket, DATA_SEGMENT_LENGTH) == servicePacket[7];
+      return isCompleteServicePacket(currPacketModuleId);
     }
     default:
       return false;
@@ -329,7 +343,23 @@ bool isCompleteDataPacket(MODULE_ID moduleId)
   if(!dataPacket) 
     return false;
 
-  return dataPacket[0][6] == 0 && dataPacket[1][6] == 1 && dataPacket[2][6] == 2;
+  const float checkSum = calcFullCheckSum(dataPacket, DATA_SEGMENT_LENGTH);
+  for(int i = 0; i < COUNT_SEGMENTS_IN_PACKET; i++){
+    if(dataPacket[i][6] != i || checkSum != dataPacket[i][7]) return false;
+  }
+
+  return true;
+}
+
+bool isCompleteServicePacket(MODULE_ID moduleId)
+{
+  //Проверяем на -1, т.к. это значит, что данные пакета записались в массив текущего модуля. 
+  //В этом элементе массива по протоколу всегда -1. А если запись не произошла, то там будет начальный 0
+  float* const servicePacket = getServicePacket(moduleId);
+  if(!servicePacket) 
+    return false;
+
+  return servicePacket[6] == -1 && calcCheckSum(servicePacket, DATA_SEGMENT_LENGTH) == servicePacket[7];
 }
 
 void resetCurrIncomingPacket()

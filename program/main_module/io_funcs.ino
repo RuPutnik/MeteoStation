@@ -108,7 +108,7 @@ void printDisplayFailDeliveryCommand()
   delay(PRINT_SERVICE_MSG_MSEC);
 }
 
-void printDisplayModuleServiceMsg(SERVICE_MSG_TYPE typeServicePacket, float valueParam = 0)
+void printDisplayModuleServiceMsg(SERVICE_MSG_TYPE typeServicePacket, float valueParam)
 {
   resetDisplay();
   updateDisplayHeader();
