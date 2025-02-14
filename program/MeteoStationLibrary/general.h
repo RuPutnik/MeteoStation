@@ -4,14 +4,15 @@
 #include <SPI.h>
 #include <RF24.h>
 
-#define LOOP_DELAY_MSEC              10
-#define SETUP_DELAY                  2000
+#define LOOP_DELAY_MSEC            10
+#define SETUP_DELAY                2000
 
 #define SERIAL_SPEED               9600
 #define RADIO_CHANNEL_NUMBER       8
 #define DATA_SEGMENT_LENGTH        8
 #define DATA_SEGMENT_LENGTH_B      DATA_SEGMENT_LENGTH * sizeof(float)  //32
 #define COUNT_SEGMENTS_IN_PACKET   3
+#define MAX_PACKET_NUMBER		   1000000
 
 enum MODULE_ID: uint8_t
 {
