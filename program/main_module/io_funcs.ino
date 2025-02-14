@@ -135,7 +135,7 @@ void printDisplayModuleServiceMsg(SERVICE_MSG_TYPE typeServicePacket, float valu
       sprintf(printBuffer, "Lifetime: %lu", static_cast<unsigned long int>(valueParam));
       break;
     case SERVICE_MSG_TYPE::GET_ERROR_COMMAND:
-      strcpy(printBuffer, "Incorrect command");
+      sprintf(printBuffer, "Invalid command: %d", static_cast<int>(valueParam));
       break;
     default:
       strcpy(printBuffer, "Unknown msg type");

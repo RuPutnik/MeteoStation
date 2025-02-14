@@ -176,6 +176,7 @@ void displayIncomingData()
     {
       float* const servicePacket = getServicePacket(currPacketModuleId);
       printDisplayModuleServiceMsg(static_cast<SERVICE_MSG_TYPE>(servicePacket[3]), servicePacket[4]);
+      updateDisplay();
       break;
     }
     default:
@@ -249,7 +250,7 @@ bool handlerCorrectServicePacket(float* servicePacket)
   debugServicePacket(servicePacket);
   const SERVICE_MSG_TYPE msgType = static_cast<SERVICE_MSG_TYPE>(servicePacket[3]);
   if(msgType == SERVICE_MSG_TYPE::GET_ERROR_COMMAND){    
-    printDisplayModuleServiceMsg(msgType);
+    printDisplayModuleServiceMsg(msgType, servicePacket[4]);
   }
 
   return msgType == SERVICE_MSG_TYPE::SUCCESS_GET_COMMAND;
@@ -420,9 +421,5 @@ void fillActionPacket(COMMANDS_TYPE commandId, float* actionPacket)
   actionPacket[6] = -1;
   actionPacket[7] = calcCheckSum(actionPacket, DATA_SEGMENT_LENGTH);
 
-  if(currNumOutPacket < 1000000000){
-    currNumOutPacket++;
-  }else{
-    currNumOutPacket = 0;
-  }
+  currNumOutPacket = (currNumOutPacket < MAX_PACKET_NUMBER ? currNumOutPacket + 1 : 0);
 }
