@@ -161,7 +161,7 @@ void fillHeaderAndTailServicePacket(float* packet){
 
 void fillServicePacketSMS(float* packet){
   packet[3] = SERVICE_MSG_TYPE::START_MODULE_SUCCESS;
-  packet[4] = 0;
+  packet[4] = MODULE_ID::INTERNAL_MODULE_ID;
 
   fillHeaderAndTailServicePacket(packet);
 }
