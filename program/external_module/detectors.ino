@@ -5,9 +5,9 @@ float getTemperatureValue(){
   float tempAHT10, tempBMP280;
   ahtDetector.getEvent(&humidityEvent, &tempEvent);
 
-  tempAHT10=tempEvent.temperature;
-  tempBMP280=bmpDetector.readTemperature();
-  return (tempAHT10+tempBMP280)/2;
+  tempAHT10 = tempEvent.temperature;
+  tempBMP280 = bmpDetector.readTemperature();
+  return (tempAHT10 + tempBMP280) / 2;
 }
 
 float getHumidityValue(){

@@ -1,24 +1,5 @@
 //Служебные функции
 
-float normalize(int value){
-  return value / 1024.0;  
-}
-
-float calcCheckSum(float* data, int sizeData){
-  float sum = 0;
-  for(int i = 0; i < sizeData - 1; i++){
-    sum += data[i]; //Можно считать с дробями т.к. на обоих модулях алгоритм подсчета одинаков и числа должны совпасть
-  }
-  return sum;   
-}
-
-float calcFullCheckSum(float** dataArray, int sizeData)
-{
-  return calcCheckSum(dataArray[0], sizeData) + 
-         calcCheckSum(dataArray[1], sizeData) + 
-         calcCheckSum(dataArray[2], sizeData);
-}
-
 void debugSavedIncomingPacket()
 {
   if(currPacketModuleId == INTERNAL_MODULE_ID){
@@ -28,61 +9,69 @@ void debugSavedIncomingPacket()
   }
 
   if(currPacketType == TYPE_PACKET::DATA){
-    float** dataPacket = getMeteoDataPacket(currPacketModuleId);
+    MeteoDataPacket* const dataPacket = getMeteoDataPacket(currPacketModuleId);
     debugDataPacket(dataPacket);
   }else if(currPacketType == TYPE_PACKET::SERVICE){
-    float* servicePacket = getServicePacket(currPacketModuleId);
+    ActionServicePacket* const servicePacket = getServicePacket(currPacketModuleId);
     debugServicePacket(servicePacket);
   }
 }
 
-void debugDataPacket(float** packet){
+void debugDataPacket(MeteoDataPacket* packet){
   Serial.println("=== DATA PACKET ===");
-  for(int i = 0; i < COUNT_SEGMENTS_IN_PACKET; i++){
-    for(int j = 0; j < DATA_SEGMENT_LENGTH; j++){
-      Serial.print(packet[i][j] + (String)" | ");
-    }
-    Serial.println("\n------");
-  }
+  Serial.println(static_cast<String>("type = ") + packet->type);
+  Serial.println(static_cast<String>("dest = ") + packet->dest);
+  Serial.println(static_cast<String>("sender = ") + packet->sender);
+  Serial.println(static_cast<String>("numPacket = ") + packet->numPacket);
+  Serial.println(static_cast<String>("valueParam1 = ") + packet->val1);
+  Serial.println(static_cast<String>("valueParam2 = ") + packet->val2);
+  Serial.println(static_cast<String>("valueParam3 = ") + packet->val3);
+  Serial.println(static_cast<String>("valueParam4 = ") + packet->val4);
+  Serial.println(static_cast<String>("valueParam5 = ") + packet->val5);
+  Serial.println(static_cast<String>("valueParam6 = ") + packet->val6);
+  Serial.println(static_cast<String>("ckSum = ") + packet->ckSum);
 }
 
-void debugServicePacket(float* packet){
+void debugServicePacket(ActionServicePacket* packet){
   Serial.println("=== SERVICE PACKET ===");
-  for(int j = 0; j < DATA_SEGMENT_LENGTH; j++){
-      Serial.print(packet[j] + (String)" | ");
-  }
-  Serial.print("\n");
+  Serial.println(static_cast<String>("type = ") + packet->type);
+  Serial.println(static_cast<String>("dest = ") + packet->dest);
+  Serial.println(static_cast<String>("sender = ") + packet->sender);
+  Serial.println(static_cast<String>("numPacket = ") + packet->numPacket);
+  Serial.println(static_cast<String>("serviceId = ") + packet->id);
+  Serial.println(static_cast<String>("valueParam = ") + packet->valueParam);
+  Serial.println(static_cast<String>("ckSum = ") + packet->ckSum);
 }
 
-void debugActionPacket(float* packet){
+void debugActionPacket(ActionServicePacket* packet){
   Serial.println("=== ACTION PACKET ===");
-  for(int j = 0; j < DATA_SEGMENT_LENGTH; j++){
-      Serial.print(packet[j]);
-      Serial.print(" | ");
-  }
-  Serial.print("\n");
+  Serial.println(static_cast<String>("type = ") + packet->type);
+  Serial.println(static_cast<String>("dest = ") + packet->dest);
+  Serial.println(static_cast<String>("sender = ") + packet->sender);
+  Serial.println(static_cast<String>("numPacket = ") + packet->numPacket);
+  Serial.println(static_cast<String>("actionId = ") + packet->id);
+  Serial.println(static_cast<String>("valueParam = ") + packet->valueParam);
+  Serial.println(static_cast<String>("ckSum = ") + packet->ckSum);
 }
 
-void fillIncomingActionPacket(float* incomingPacket, int module_id, COMMANDS_TYPE command, float paramValue){
-  incomingPacket[0] = module_id;
-  incomingPacket[1] = CENTRAL_MODULE_ID;
-  incomingPacket[2] = TYPE_PACKET::CONTROL;
-  incomingPacket[3] = command;
-  incomingPacket[4] = paramValue;
-  incomingPacket[5] = 0;
-  incomingPacket[6] = 0;
-  incomingPacket[7] = calcCheckSum(incomingPacket, DATA_SEGMENT_LENGTH);
+void fillIncomingActionPacket(ActionServicePacket* incomingPacket, int module_id, COMMANDS_TYPE command, float paramValue){
+  incomingPacket->dest = module_id;
+  incomingPacket->sender = MODULE_ID::CENTRAL_MODULE_ID;
+  incomingPacket->type = TYPE_PACKET::CONTROL;
+  incomingPacket->id = command;
+  incomingPacket->valueParam = paramValue;
+  incomingPacket->ckSum = calcCheckSum(incomingPacket, ACTSERV_PACKET_LENGTH);
 }
 
-float* getServicePacket(MODULE_ID moduleId)
+ActionServicePacket* getServicePacket(MODULE_ID moduleId)
 {
   if(moduleId == MODULE_ID::INTERNAL_MODULE_ID)
   {
-    return servicePacketInternal;
+    return &internalServicePacket;
   }
   else if(moduleId == MODULE_ID::EXTERNAL_MODULE_ID)
   {
-    return servicePacketExternal;
+    return &externalServicePacket;
   }
   else
   {
@@ -90,15 +79,15 @@ float* getServicePacket(MODULE_ID moduleId)
   }
 }
 
-float** getMeteoDataPacket(MODULE_ID moduleId)
+MeteoDataPacket* getMeteoDataPacket(MODULE_ID moduleId)
 {
   if(moduleId == MODULE_ID::INTERNAL_MODULE_ID)
   {
-    return dataPacketInternal;
+    return &internalDataPacket;
   }
   else if(moduleId == MODULE_ID::EXTERNAL_MODULE_ID)
   {
-    return dataPacketExternal;
+    return &externalDataPacket;
   }
   else
   {

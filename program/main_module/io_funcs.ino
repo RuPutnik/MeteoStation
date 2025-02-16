@@ -267,9 +267,9 @@ void bottomLeftButtonHandler()
   }
   else
   {
-    fillActionPacket(currCommand, actionPacket);
-    sendActionPacket(actionPacket);
-    memset(actionPacket, 0, DATA_SEGMENT_LENGTH_B);
+    fillActionPacket(currCommand, &actionPacket);
+    sendActionPacket(&actionPacket);
+    memset(&actionPacket, 0, sizeof(ActionServicePacket));
     resetServiceBuffer(currDisplayedModuleId);
   }
 }
@@ -281,11 +281,11 @@ String formTemperatureMsg()
 
   if(currDisplayedModuleId == MODULE_ID::INTERNAL_MODULE_ID)
   {
-    temperatureValue = dataPacketInternal[0][3];
+    temperatureValue = internalDataPacket.val1;
   }
   else if(currDisplayedModuleId == MODULE_ID::EXTERNAL_MODULE_ID)
   {
-    temperatureValue = dataPacketExternal[0][3];
+    temperatureValue = externalDataPacket.val1;
   }
   else
   {
@@ -309,7 +309,7 @@ String formPressureMsg()
 {
   if(currDisplayedModuleId == MODULE_ID::EXTERNAL_MODULE_ID)
   {
-    float pressureValue = dataPacketExternal[1][4];
+    float pressureValue = externalDataPacket.val4;
     String scaleName;
 
     if(currShowDataMode == SHOW_DATA_MODE::CLASSIC)
@@ -337,11 +337,11 @@ String formHumidityMsg()
 
   if(currDisplayedModuleId == MODULE_ID::INTERNAL_MODULE_ID)
   {
-    humidityValue = dataPacketInternal[0][4];
+    humidityValue = internalDataPacket.val2;
   }
   else if(currDisplayedModuleId == MODULE_ID::EXTERNAL_MODULE_ID)
   {
-    humidityValue = dataPacketExternal[0][4];
+    humidityValue = externalDataPacket.val2;
   }
   else
   {
@@ -355,7 +355,7 @@ String formSolarMsg()
 {
   if(currDisplayedModuleId == MODULE_ID::EXTERNAL_MODULE_ID)
   {
-    float solarValue = dataPacketExternal[2][3];
+    float solarValue = externalDataPacket.val5;
     String scaleName;
 
     if(currShowDataMode == SHOW_DATA_MODE::CLASSIC)
@@ -380,7 +380,7 @@ String formUVMsg()
 {
   if(currDisplayedModuleId == MODULE_ID::EXTERNAL_MODULE_ID)
   {
-    float uvValue = dataPacketExternal[2][4];
+    float uvValue = externalDataPacket.val6;
     String scaleName;
 
     if(currShowDataMode == SHOW_DATA_MODE::CLASSIC)
@@ -405,7 +405,7 @@ String formRainMsg()
 {
   if(currDisplayedModuleId == MODULE_ID::EXTERNAL_MODULE_ID)
   {
-    float rainValue = dataPacketExternal[1][3];
+    float rainValue = externalDataPacket.val3;
     String scaleName;
 
     if(currShowDataMode == SHOW_DATA_MODE::CLASSIC)
@@ -430,7 +430,7 @@ String formMicrophoneMsg()
 {
   if(currDisplayedModuleId == MODULE_ID::INTERNAL_MODULE_ID)
   {
-    float microphoneValue = dataPacketInternal[1][4];
+    float microphoneValue = internalDataPacket.val4;
     String scaleName;
 
     if(currShowDataMode == SHOW_DATA_MODE::CLASSIC)
@@ -456,7 +456,7 @@ String formMQ135Msg()
   //Углекислый газ
   if(currDisplayedModuleId == MODULE_ID::INTERNAL_MODULE_ID)
   {
-    float carbonDioxideValue = dataPacketInternal[1][3];
+    float carbonDioxideValue = internalDataPacket.val3;
 
     return "CO2 = " + static_cast<String>(carbonDioxideValue) + " ppm";
   }

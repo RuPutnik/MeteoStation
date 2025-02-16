@@ -289,6 +289,7 @@ void startRadio(){
   radio.setChannel(RADIO_CHANNEL_NUMBER);
   radio.setDataRate(RF24_1MBPS);
   radio.setPALevel(RF24_PA_LOW);
+  radio.enableDynamicPayloads();
   radio.openReadingPipe(1,PIPE_READ_ADDRESS);
   radio.openWritingPipe(PIPE_WRITE_ADDRESS); //Открываем трубу для отправки
   radio.startListening();

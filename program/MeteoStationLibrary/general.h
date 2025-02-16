@@ -9,9 +9,8 @@
 
 #define SERIAL_SPEED               9600
 #define RADIO_CHANNEL_NUMBER       8
-#define DATA_SEGMENT_LENGTH        8
-#define DATA_SEGMENT_LENGTH_B      DATA_SEGMENT_LENGTH * sizeof(float)  //32
-#define COUNT_SEGMENTS_IN_PACKET   3
+#define DATA_PACKET_LENGTH		   sizeof(MeteoDataPacket)
+#define ACTSERV_PACKET_LENGTH	   sizeof(ActionServicePacket)
 #define MAX_PACKET_NUMBER		   1000000
 
 enum MODULE_ID: uint8_t
@@ -49,5 +48,52 @@ enum SERVICE_MSG_TYPE: uint8_t
   REPORT_LIFE_TIME     = 5,
   GET_ERROR_COMMAND    = 6
 };
+
+inline float normalize(int value){
+  return value / 1024.0;  
+}
+
+inline uint32_t calcCheckSum(void* data, unsigned int byteLength){
+  uint32_t crc = 0;
+  for(unsigned int i = 0; i < byteLength - sizeof(uint32_t); i++){
+    crc += (reinterpret_cast<uint8_t*>(data)[i] * 211);  //Calc CRC
+  }
+  return crc;   
+}
+
+#pragma pack(push, 1)
+struct MeteoDataPacket
+{
+	unsigned int type: 4;
+	unsigned int dest: 4;
+	unsigned int sender: 4;
+	uint32_t numPacket: 20;
+	float val1;
+	float val2;
+	float val3;
+	float val4;
+	float val5;
+	float val6;
+	uint32_t ckSum;
+};
+
+struct ActionServicePacket
+{
+	unsigned int type: 4;
+	unsigned int dest: 4;
+	unsigned int sender: 4;
+	uint32_t numPacket: 20;
+	unsigned int id: 16;
+	float valueParam;
+	uint32_t ckSum;
+};
+
+struct HeaderPacket
+{
+    unsigned int type: 4;
+	unsigned int dest: 4;
+	unsigned int sender: 4;
+};
+#pragma pack(pop)
 
 #endif

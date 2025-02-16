@@ -19,11 +19,11 @@ Adafruit_AHT10 ahtDetector;
 Adafruit_BMP280 bmpDetector;
 RF24 radio(RADIO_CE_PORT, RADIO_CSN_PORT);
 
-int currSendDataIntervalIndex;
+uint8_t currSendDataIntervalIndex;
 unsigned long sendDataIntervalsMsec[COUNT_SEND_DATA_INTERVALS]{1000, 5000, 10000, 60000}; //Возможные интервалы отправки данных
-float** dataPacket = nullptr;
-float servicePacket[DATA_SEGMENT_LENGTH];
-float actionPacket[DATA_SEGMENT_LENGTH];
+MeteoDataPacket dataPacket;
+ActionServicePacket servicePacket;
+ActionServicePacket actionPacket;
 float numberPacket;
 unsigned long prevTime;
 bool sendTmData;
@@ -37,13 +37,6 @@ void setup() {
   currSendDataIntervalIndex = 2; //По умолчанию используем интервал 10сек (10 000 мсек)
   sendTmData = true;
 
-  if(!dataPacket){
-    dataPacket = new float*[COUNT_SEGMENTS_IN_PACKET];
-    for(int i = 0; i < COUNT_SEGMENTS_IN_PACKET; i++){
-      dataPacket[i] = new float[DATA_SEGMENT_LENGTH];
-    }
-  }
-
   //Запускаем, настраиваем все датчики
   turnOnLED();
   startRadio();
@@ -55,8 +48,8 @@ void setup() {
   turnOffLED();
 
   //Сообщаем главному модулю, что мы успешно запустились
-  fillServicePacketSMS(servicePacket);
-  sendPacketService(servicePacket);
+  fillServicePacketSMS(&servicePacket);
+  sendPacketService(&servicePacket);
   Serial.println("=== SUCCESS SETUP ===");
 }
 
@@ -64,12 +57,12 @@ void loop() {
   if(sendTmData && (millis() - prevTime) >= sendDataIntervalsMsec[currSendDataIntervalIndex]){
     Serial.println("=== FORM DATA PACKET ===");
     //формируем массив данных
-    fillDataPacket((float**)dataPacket);
+    fillDataPacket(&dataPacket);
     //отправляем массив метеоданных
 
     Serial.println("=== SEND DATA PACKET ===");
-    debugDataPacket((float**)dataPacket);
-    sendPacketData((float**)dataPacket);
+    debugDataPacket(&dataPacket);
+    sendPacketData(&dataPacket);
 
     prevTime = millis();
   }
@@ -79,25 +72,25 @@ void loop() {
   if(radio.available()){
     Serial.println("=== PACKET INCOMING ===");
     //пытаемся читать входящие данные                              
-    radio.read(&actionPacket, DATA_SEGMENT_LENGTH_B);
+    radio.read(&actionPacket, ACTSERV_PACKET_LENGTH);
     //анализируем входные данные
-    analyzeIncomingPacket(actionPacket);  
+    analyzeIncomingPacket(&actionPacket);  
   }  
   
   delay(LOOP_DELAY_MSEC); //Обязательная задержка
   Serial.println("=== END ITERATION ===");
 }
 
-void analyzeIncomingPacket(float* packet){
+void analyzeIncomingPacket(ActionServicePacket* packet){
   Serial.println("=== START ANALYZE INCOMING ===");
   debugActionPacket(packet);
 
-  if(packet[0] != MODULE_ID::EXTERNAL_MODULE_ID) return; //Проверка, что данный пакет предназначен текущему модулю
-  if(packet[1] != MODULE_ID::CENTRAL_MODULE_ID) return; //Проверка, что данный пакет поступил от главного модуля
-  if(packet[2] != TYPE_PACKET::CONTROL) return; //Проверка, что данный пакет имеет тип 'управляющий'
-  if(packet[7] != calcCheckSum(packet, DATA_SEGMENT_LENGTH)) return; //Проверка на контрольную сумму пакета
+  if(packet->dest != MODULE_ID::EXTERNAL_MODULE_ID) return; //Проверка, что данный пакет предназначен текущему модулю
+  if(packet->sender != MODULE_ID::CENTRAL_MODULE_ID) return; //Проверка, что данный пакет поступил от главного модуля
+  if(packet->type != TYPE_PACKET::CONTROL) return; //Проверка, что данный пакет имеет тип 'управляющий'
+  if(packet->ckSum != calcCheckSum(packet, DATA_PACKET_LENGTH)) return; //Проверка на контрольную сумму пакета
 
-  const COMMANDS_TYPE type = static_cast<COMMANDS_TYPE>(packet[3]);
+  const COMMANDS_TYPE type = static_cast<COMMANDS_TYPE>(packet->type);
   Serial.println((String)"PACKET ACTION TYPE : " + type);
   if(type >= COMMANDS_TYPE::RESTART_ALL && type <= COMMANDS_TYPE::HEARTBEAT){
     sendReceipt();
@@ -124,95 +117,87 @@ void analyzeIncomingPacket(float* packet){
     break;
     default:
 	  //Если тип команды не распознан, посылаем об этом сообщение главному модулю
-      fillServicePacketGEC(servicePacket, actionPacket);
-      sendPacketService(servicePacket);
+      fillServicePacketGEC(&servicePacket, &actionPacket);
+      sendPacketService(&servicePacket);
     break;
   }
 }
 
-void sendPacketData(float** packet){
+void sendPacketData(MeteoDataPacket* packet){
   radio.stopListening();
-  radio.write(packet[0], DATA_SEGMENT_LENGTH_B);
-  radio.write(packet[1], DATA_SEGMENT_LENGTH_B);
-  radio.write(packet[2], DATA_SEGMENT_LENGTH_B);
+  radio.write(packet, DATA_PACKET_LENGTH);
   radio.startListening();
 }
 
-void sendPacketService(float* packet){
+void sendPacketService(ActionServicePacket* packet){
   debugServicePacket(packet);
   radio.stopListening();
-  radio.write(packet, DATA_SEGMENT_LENGTH_B);
+  radio.write(packet, ACTSERV_PACKET_LENGTH);
   radio.startListening();
 }
 
 //Отправка квитанции о получении пакета управления (Отсылается перед выполнением какого-либо требуемого действия)
 void sendReceipt(){
-  fillServicePacketSGC(servicePacket, actionPacket);
-  sendPacketService(servicePacket);
+  fillServicePacketSGC(&servicePacket, &actionPacket);
+  sendPacketService(&servicePacket);
 }
 
 //Функции формирования служебных пакетов
-void fillHeaderAndTailServicePacket(float* packet){
-  packet[0]=MODULE_ID::CENTRAL_MODULE_ID;
-  packet[1]=MODULE_ID::EXTERNAL_MODULE_ID;
-  packet[2]=TYPE_PACKET::SERVICE;
-  packet[5]=numberPacket;
-  packet[6]=-1;
-  packet[7]=calcCheckSum(packet, DATA_SEGMENT_LENGTH);
+void fillHeaderAndTailServicePacket(ActionServicePacket* packet){
+  packet->dest = MODULE_ID::CENTRAL_MODULE_ID;
+  packet->sender = MODULE_ID::EXTERNAL_MODULE_ID;
+  packet->type = TYPE_PACKET::SERVICE;
+  packet->numPacket = numberPacket;
+  packet->ckSum = calcCheckSum(packet, DATA_PACKET_LENGTH);
 }
 
-void fillServicePacketSMS(float* packet){
-  packet[3] = SERVICE_MSG_TYPE::START_MODULE_SUCCESS;
-  packet[4] = MODULE_ID::EXTERNAL_MODULE_ID;
+void fillServicePacketSMS(ActionServicePacket* packet){
+  packet->id = SERVICE_MSG_TYPE::START_MODULE_SUCCESS;
+  packet->valueParam = MODULE_ID::EXTERNAL_MODULE_ID;
 
   fillHeaderAndTailServicePacket(packet);
 }
 
-void fillServicePacketSGC(float* packet, float* actionPacket){
-  packet[3] = SERVICE_MSG_TYPE::SUCCESS_GET_COMMAND;
-  packet[4] = actionPacket[3];
+void fillServicePacketSGC(ActionServicePacket* packet, ActionServicePacket* actionPacket){
+  packet->id = SERVICE_MSG_TYPE::SUCCESS_GET_COMMAND;
+  packet->valueParam = actionPacket->id;
 
   fillHeaderAndTailServicePacket(packet);
 }
 
-void fillServicePacketESD(float* packet, short numErrDetector){
-  packet[3] = SERVICE_MSG_TYPE::ERROR_START_DETECTOR;
-  packet[4] = numErrDetector;
+void fillServicePacketESD(ActionServicePacket* packet, short numErrDetector){
+  packet->id = SERVICE_MSG_TYPE::ERROR_START_DETECTOR;
+  packet->valueParam = numErrDetector;
 
   fillHeaderAndTailServicePacket(packet);
 }
 
-void fillServicePacketRTI(float* packet, int currentTimeIntervalMsec){
-  packet[3] = SERVICE_MSG_TYPE::REPORT_TIME_INTERVAL;
-  packet[4] = (sendTmData ? currentTimeIntervalMsec : -1);
+void fillServicePacketRTI(ActionServicePacket* packet, int currentTimeIntervalMsec){
+  packet->id = SERVICE_MSG_TYPE::REPORT_TIME_INTERVAL;
+  packet->valueParam = (sendTmData ? currentTimeIntervalMsec : -1);
 
   fillHeaderAndTailServicePacket(packet);
 }
 
-void fillServicePacketRLT(float* packet){
-  packet[3] = SERVICE_MSG_TYPE::REPORT_LIFE_TIME;
-  packet[4] = millis();
+void fillServicePacketRLT(ActionServicePacket* packet){
+  packet->id = SERVICE_MSG_TYPE::REPORT_LIFE_TIME;
+  packet->valueParam = millis();
 
   fillHeaderAndTailServicePacket(packet);
 }
 
-void fillServicePacketGEC(float* packet, float* actionPacket){
-  packet[3] = SERVICE_MSG_TYPE::GET_ERROR_COMMAND;
-  packet[4] = actionPacket[3];
+void fillServicePacketGEC(ActionServicePacket* packet, ActionServicePacket* actionPacket){
+  packet->id = SERVICE_MSG_TYPE::GET_ERROR_COMMAND;
+  packet->valueParam = actionPacket->id;
 
   fillHeaderAndTailServicePacket(packet);
 }
 
 //Функции-реакции на управляющие пакеты
 void restartAll(){
-  for(int i = 0; i < COUNT_SEGMENTS_IN_PACKET; i++){
-    delete[] dataPacket[i];
-  }
-  delete[] dataPacket;
-  dataPacket = nullptr;
-
-  memset(servicePacket, 0, DATA_SEGMENT_LENGTH_B);
-  memset(actionPacket, 0, DATA_SEGMENT_LENGTH_B);
+  memset(&dataPacket, 0, DATA_PACKET_LENGTH);
+  memset(&servicePacket, 0, ACTSERV_PACKET_LENGTH);
+  memset(&actionPacket, 0, ACTSERV_PACKET_LENGTH);
 
   stopRadio();
   setup();
@@ -223,13 +208,13 @@ void changeSendInterval(){
 }
 
 void returnCurrentTimeInterval(){
-  fillServicePacketRTI(servicePacket, sendDataIntervalsMsec[currSendDataIntervalIndex]);
-  sendPacketService(servicePacket);
+  fillServicePacketRTI(&servicePacket, sendDataIntervalsMsec[currSendDataIntervalIndex]);
+  sendPacketService(&servicePacket);
 }
 
 void returnCurrentLifeTime(){
-  fillServicePacketRLT(servicePacket);
-  sendPacketService(servicePacket);
+  fillServicePacketRLT(&servicePacket);
+  sendPacketService(&servicePacket);
 }
 
 void heartbeatReaction(){
@@ -239,34 +224,23 @@ void heartbeatReaction(){
 }
 
 //Функция формирования пакета данных
-void fillDataPacket(float** dataArray){
-  dataArray[0][0] = MODULE_ID::CENTRAL_MODULE_ID;
-  dataArray[0][1] = MODULE_ID::EXTERNAL_MODULE_ID;
-  dataArray[0][2] = TYPE_PACKET::DATA;
+void fillDataPacket(MeteoDataPacket* dataPacket){
+  dataPacket->dest = MODULE_ID::CENTRAL_MODULE_ID;
+  dataPacket->sender = MODULE_ID::EXTERNAL_MODULE_ID;
+  dataPacket->type = TYPE_PACKET::DATA;
 
-  memmove(dataArray[1], dataArray[0], 3 * sizeof(float)); //Копируем данные в оставшиеся сегменты пакета
-  memmove(dataArray[2], dataArray[0], 3 * sizeof(float));
+  dataPacket->val1 = getTemperatureValue();
+  dataPacket->val2 = getHumidityValue();
+  dataPacket->val3 = getRainValue();
+  dataPacket->val4 = getPressureValue();
+  dataPacket->val5 = getSolarValue();
+  dataPacket->val6 = getUVValue();
 
-  dataArray[0][3] = getTemperatureValue();
-  dataArray[0][4] = getHumidityValue();
-  dataArray[1][3] = getRainValue();
-  dataArray[1][4] = getPressureValue();
-  dataArray[2][3] = getSolarValue();
-  dataArray[2][4] = getUVValue();
+  dataPacket->numPacket = numberPacket;
 
-  dataArray[0][5] = numberPacket;
-  dataArray[1][5] = numberPacket;
-  dataArray[2][5] = numberPacket;
+  const uint32_t resCkSum = calcCheckSum(dataPacket, DATA_PACKET_LENGTH);
 
-  dataArray[0][6] = 0;
-  dataArray[1][6] = 1;
-  dataArray[2][6] = 2;
-
-  float resCkSum = calcFullCheckSum(dataArray, DATA_SEGMENT_LENGTH);
-
-  dataArray[0][7] = resCkSum;
-  dataArray[1][7] = resCkSum;
-  dataArray[2][7] = resCkSum;
+  dataPacket->ckSum = resCkSum;
   
   if(numberPacket < 1000000000){
     numberPacket++;
@@ -285,13 +259,13 @@ void turnOffLED(){
 }
 
 void startRadio(){
-  //То что ниже - надо еще настроить
   radio.begin();
   radio.setChannel(RADIO_CHANNEL_NUMBER);
   radio.setDataRate(RF24_1MBPS);
   radio.setPALevel(RF24_PA_LOW);
+  radio.enableDynamicPayloads();
   radio.openReadingPipe(1,PIPE_READ_ADDRESS);
-  radio.openWritingPipe(PIPE_WRITE_ADDRESS); //Открываем трубу для отправки
+  radio.openWritingPipe(PIPE_WRITE_ADDRESS); //Открываем трубу для отправки метеоданных
   radio.startListening();
 }
 
@@ -306,8 +280,8 @@ void startAHT10(){
     delay(10);
     count--;
     if(count<0){
-      fillServicePacketESD(servicePacket, 1);
-      sendPacketService(servicePacket); //Послать сообщение об ошибке
+      fillServicePacketESD(&servicePacket, 1);
+      sendPacketService(&servicePacket); //Послать сообщение об ошибке
       Serial.println("ERROR AHT10");
       return;
     }
@@ -321,8 +295,8 @@ void startBMP280(){
     delay(10);
     count--;
     if(count<0){
-      fillServicePacketESD(servicePacket, 0);
-      sendPacketService(servicePacket); //Послать сообщение об ошибке
+      fillServicePacketESD(&servicePacket, 0);
+      sendPacketService(&servicePacket); //Послать сообщение об ошибке
       Serial.println("ERROR BMP280");
       return;
     }

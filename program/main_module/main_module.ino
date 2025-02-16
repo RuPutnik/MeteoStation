@@ -54,12 +54,10 @@ LiquidCrystal_I2C lcd(LCD2004_ADDRESS, 20, 4);
 RF24 radio(RADIO_CE_PIN, RADIO_CSN_PIN);
 MicroDS3231 rtc;
 
-float currIncomingData[DATA_SEGMENT_LENGTH];
-float servicePacketExternal[DATA_SEGMENT_LENGTH];
-float servicePacketInternal[DATA_SEGMENT_LENGTH];
-float actionPacket[DATA_SEGMENT_LENGTH];
-float** dataPacketExternal = nullptr;
-float** dataPacketInternal = nullptr;
+void* currIncomingPacket = nullptr;
+ActionServicePacket externalServicePacket, internalServicePacket;
+ActionServicePacket actionPacket;
+MeteoDataPacket externalDataPacket, internalDataPacket;
 
 TYPE_PACKET currPacketType = TYPE_PACKET::UNKNOWN;
 MODULE_ID currPacketModuleId = MODULE_ID::INCORRECT_MODULE_ID;
@@ -78,19 +76,7 @@ void setup()
   currNumOutPacket = 0;
   currMeteoParam = 1;
 
-  if(!dataPacketExternal){
-    dataPacketExternal = new float*[COUNT_SEGMENTS_IN_PACKET];
-    for(int i = 0; i < COUNT_SEGMENTS_IN_PACKET; i++){
-      dataPacketExternal[i] = new float[DATA_SEGMENT_LENGTH];
-    }
-  }
-
-  if(!dataPacketInternal){
-    dataPacketInternal = new float*[COUNT_SEGMENTS_IN_PACKET];
-    for(int i = 0; i < COUNT_SEGMENTS_IN_PACKET; i++){
-      dataPacketInternal[i] = new float[DATA_SEGMENT_LENGTH];
-    }
-  }
+  currIncomingPacket = malloc(DATA_PACKET_LENGTH);
   
   startRadio();
   initializeButtons();
@@ -106,6 +92,7 @@ void startRadio()
   radio.setDataRate(RF24_1MBPS);
   radio.setPALevel(RF24_PA_HIGH);
   radio.enableDynamicAck(); //Разрешаем выборочное отключение подтверждения передачи данных
+  radio.enableDynamicPayloads();
   radio.openReadingPipe(1, PIPE_READ_ADDRESS_EXTERNAL);
   radio.openReadingPipe(2, PIPE_READ_ADDRESS_INTERNAL);
   radio.startListening();
@@ -129,28 +116,16 @@ void loop()
 bool processIncomingData()
 {
   Serial.println("Data Incoming!");
-  radio.read(currIncomingData, DATA_SEGMENT_LENGTH_B);
+  radio.read(currIncomingPacket, DATA_PACKET_LENGTH);
 
-  for(int i = 0; i < DATA_SEGMENT_LENGTH; i++){
-    Serial.println(i + (String)": " + currIncomingData[i]);
-  }
-
-  const bool validIncomingData = analyzeIncomingPacket(currIncomingData);
+  const bool validIncomingData = analyzeIncomingPacket(currIncomingPacket);
 
   if(!validIncomingData){
     Serial.println("DATA IS INVALID!");
     return false;
   }
 
-  saveIncomingData(currIncomingData);
-
-  if(currPacketType == TYPE_PACKET::DATA){
-    //Если это сегмент пакета данных, анализ проводим только после получения сегмента 2, 
-    //иначе будет попытка работы с неполным пакетом данных. Пока условно считаем данные корректными
-    if(currIncomingData[6] != (COUNT_SEGMENTS_IN_PACKET - 1)){
-      return true;
-    }
-  }
+  saveIncomingData(currIncomingPacket);
     
   if(checkIncomingDataIntegrity()){
     Serial.println("Packet is Correct!");
@@ -174,8 +149,8 @@ void displayIncomingData()
     break;
     case TYPE_PACKET::SERVICE:
     {
-      float* const servicePacket = getServicePacket(currPacketModuleId);
-      printDisplayModuleServiceMsg(static_cast<SERVICE_MSG_TYPE>(servicePacket[3]), servicePacket[4]);
+      ActionServicePacket* const servicePacket = getServicePacket(currPacketModuleId);
+      printDisplayModuleServiceMsg(static_cast<SERVICE_MSG_TYPE>(servicePacket->id), servicePacket->valueParam);
       updateDisplay();
       break;
     }
@@ -184,7 +159,7 @@ void displayIncomingData()
   }
 }
 
-bool processReceivedServicePacket(bool (*handlerPacket)(float*))
+bool processReceivedServicePacket(bool (*handlerPacket)(ActionServicePacket*))
 {
   const unsigned long currTime = millis();
 
@@ -208,7 +183,7 @@ bool processReceivedServicePacket(bool (*handlerPacket)(float*))
   }
 }
 
-void sendActionPacket(float* actionPacket)
+void sendActionPacket(ActionServicePacket* actionPacket)
 {
   //Делаем несколько попыток отправки. Если так и не получилось получить подтверждение, сообщаем об этом
   for(int i = 0; i < COUNT_ATTEMPT_SEND_ACTION; i++){
@@ -221,10 +196,10 @@ void sendActionPacket(float* actionPacket)
   printDisplayFailDeliveryCommand();
 }
 
-bool attemptSendActionPacket(float* actionPacket)
+bool attemptSendActionPacket(ActionServicePacket* actionPacket)
 {
   radio.stopListening();
-  radio.write(actionPacket, DATA_SEGMENT_LENGTH_B, true);
+  radio.write(actionPacket, sizeof(ActionServicePacket), true);
   radio.startListening();
 
   const bool wasReceivedResponse = processReceivedServicePacket(handlerCorrectServicePacket);
@@ -232,7 +207,7 @@ bool attemptSendActionPacket(float* actionPacket)
     return false;
   }
 
-  const COMMANDS_TYPE commandType = static_cast<COMMANDS_TYPE>(actionPacket[3]);
+  const COMMANDS_TYPE commandType = static_cast<COMMANDS_TYPE>(actionPacket->id);
   if(commandType == COMMANDS_TYPE::GET_TIME_INTERVAL ||
      commandType == COMMANDS_TYPE::GET_LIFE_TIME)
   {
@@ -245,37 +220,39 @@ bool attemptSendActionPacket(float* actionPacket)
   }
 }
 
-bool handlerCorrectServicePacket(float* servicePacket)
+bool handlerCorrectServicePacket(ActionServicePacket* servicePacket)
 {
   debugServicePacket(servicePacket);
-  const SERVICE_MSG_TYPE msgType = static_cast<SERVICE_MSG_TYPE>(servicePacket[3]);
+  const SERVICE_MSG_TYPE msgType = static_cast<SERVICE_MSG_TYPE>(servicePacket->id);
   if(msgType == SERVICE_MSG_TYPE::GET_ERROR_COMMAND){    
-    printDisplayModuleServiceMsg(msgType, servicePacket[4]);
+    printDisplayModuleServiceMsg(msgType, servicePacket->valueParam);
   }
 
   return msgType == SERVICE_MSG_TYPE::SUCCESS_GET_COMMAND;
 }
 
-bool readModuleServiceParam(float* servicePacket)
+bool readModuleServiceParam(ActionServicePacket* servicePacket)
 {
-  const SERVICE_MSG_TYPE msgType = static_cast<SERVICE_MSG_TYPE>(servicePacket[3]);
+  const SERVICE_MSG_TYPE msgType = static_cast<SERVICE_MSG_TYPE>(servicePacket->id);
   if(msgType == SERVICE_MSG_TYPE::REPORT_TIME_INTERVAL ||
      msgType == SERVICE_MSG_TYPE::REPORT_LIFE_TIME){
-      printDisplayModuleServiceMsg(msgType, servicePacket[4]);
+      printDisplayModuleServiceMsg(msgType, servicePacket->valueParam);
       return true;
   }
 
   return false;
 }
 
-bool analyzeIncomingPacket(float* packet)
-{
-  if(packet[0] != MODULE_ID::CENTRAL_MODULE_ID) 
+bool analyzeIncomingPacket(void* packet)
+{  
+  HeaderPacket headIncomPack;
+  memmove(&headIncomPack, packet, sizeof(HeaderPacket));
+  if(headIncomPack.dest != MODULE_ID::CENTRAL_MODULE_ID) 
     return false; //Проверка, что данный пакет предназначен главному модулю
 
-  if(packet[1] == MODULE_ID::INTERNAL_MODULE_ID || packet[1] == MODULE_ID::EXTERNAL_MODULE_ID)
+  if(headIncomPack.sender == MODULE_ID::INTERNAL_MODULE_ID || headIncomPack.sender == MODULE_ID::EXTERNAL_MODULE_ID)
   {
-    currPacketModuleId = static_cast<MODULE_ID>(packet[1]);
+    currPacketModuleId = static_cast<MODULE_ID>(headIncomPack.sender);
   }
   else
   {
@@ -283,9 +260,9 @@ bool analyzeIncomingPacket(float* packet)
     return false;
   }
 
-  if(packet[2] == TYPE_PACKET::DATA || packet[2] == TYPE_PACKET::SERVICE)
+  if(headIncomPack.type == TYPE_PACKET::DATA || headIncomPack.type == TYPE_PACKET::SERVICE)
   {
-    currPacketType = static_cast<TYPE_PACKET>(packet[2]);
+    currPacketType = static_cast<TYPE_PACKET>(headIncomPack.type);
   }
   else
   {
@@ -297,23 +274,19 @@ bool analyzeIncomingPacket(float* packet)
 }
 
 //Сохраняем данные в нужный буфер в зависимости от результатов проведенного ранее анализа
-void saveIncomingData(float* packet)
+void saveIncomingData(void* packet)
 {
-  if((currPacketType == TYPE_PACKET::DATA && static_cast<int>(packet[6]) == 0) || 
-     currPacketType == TYPE_PACKET::SERVICE){
-    //Если это первый сегмент пакета данных и сервисный пакет, очищаем весь буфер данных или сервисный буфер для данного модуля
-    resetCurrIncomingPacket();
-  }
+  resetCurrIncomingPacket(); //очищаем старые данные
 
   switch(currPacketType){
     case TYPE_PACKET::DATA:{
-      float** dataPacket = getMeteoDataPacket(currPacketModuleId);
-      memmove(dataPacket[static_cast<int>(packet[6])], packet, DATA_SEGMENT_LENGTH_B);
+      MeteoDataPacket* dataPacket = getMeteoDataPacket(currPacketModuleId);
+      memmove(dataPacket, packet, DATA_PACKET_LENGTH);
       break;
     }
     case TYPE_PACKET::SERVICE:{
-      float* servicePacket = getServicePacket(currPacketModuleId);
-      memmove(servicePacket, packet, DATA_SEGMENT_LENGTH_B);
+      ActionServicePacket* servicePacket = getServicePacket(currPacketModuleId);
+      memmove(servicePacket, packet, ACTSERV_PACKET_LENGTH);
       break;
     }
     default:
@@ -340,27 +313,22 @@ bool checkIncomingDataIntegrity()
 
 bool isCompleteDataPacket(MODULE_ID moduleId)
 {
-  float** dataPacket = getMeteoDataPacket(moduleId);
+  MeteoDataPacket* dataPacket = getMeteoDataPacket(moduleId);
   if(!dataPacket) 
     return false;
 
-  const float checkSum = calcFullCheckSum(dataPacket, DATA_SEGMENT_LENGTH);
-  for(int i = 0; i < COUNT_SEGMENTS_IN_PACKET; i++){
-    if(dataPacket[i][6] != i || checkSum != dataPacket[i][7]) return false;
-  }
-
-  return true;
+  const uint32_t checkSum = calcCheckSum(dataPacket, DATA_PACKET_LENGTH);
+  return dataPacket->ckSum == checkSum && dataPacket->type == TYPE_PACKET::DATA;
 }
 
 bool isCompleteServicePacket(MODULE_ID moduleId)
 {
-  //Проверяем на -1, т.к. это значит, что данные пакета записались в массив текущего модуля. 
-  //В этом элементе массива по протоколу всегда -1. А если запись не произошла, то там будет начальный 0
-  float* const servicePacket = getServicePacket(moduleId);
+  ActionServicePacket* const servicePacket = getServicePacket(moduleId);
   if(!servicePacket) 
     return false;
 
-  return servicePacket[6] == -1 && calcCheckSum(servicePacket, DATA_SEGMENT_LENGTH) == servicePacket[7];
+  const uint32_t checkSum = calcCheckSum(servicePacket, ACTSERV_PACKET_LENGTH);
+  return servicePacket->ckSum == checkSum && servicePacket->type == TYPE_PACKET::SERVICE;
 }
 
 void resetCurrIncomingPacket()
@@ -384,22 +352,20 @@ void resetCurrServiceBuffer()
 
 void resetDataBuffer(MODULE_ID moduleId)
 {
-  float** dataPacket = getMeteoDataPacket(moduleId);
+  MeteoDataPacket* dataPacket = getMeteoDataPacket(moduleId);
   if(!dataPacket) 
     return;
 
-  for(int i = 0; i < COUNT_SEGMENTS_IN_PACKET; i++){
-    memset(dataPacket[i], 0, DATA_SEGMENT_LENGTH_B);
-  }
+  memset(dataPacket, 0, DATA_PACKET_LENGTH);
 }
 
 void resetServiceBuffer(MODULE_ID moduleId)
 {
-  float* servicePacket = getServicePacket(moduleId);
+  ActionServicePacket* servicePacket = getServicePacket(moduleId);
   if(!servicePacket) 
     return;
 
-  memset(servicePacket, 0, DATA_SEGMENT_LENGTH_B);
+  memset(servicePacket, 0, sizeof(ActionServicePacket));
 }
 
 void resetIncomingDataBuffers()
@@ -410,16 +376,15 @@ void resetIncomingDataBuffers()
   resetServiceBuffer(EXTERNAL_MODULE_ID);
 }
 
-void fillActionPacket(COMMANDS_TYPE commandId, float* actionPacket)
+void fillActionPacket(COMMANDS_TYPE commandId, ActionServicePacket* actionPacket)
 {
-  actionPacket[0] = currDisplayedModuleId;
-  actionPacket[1] = MODULE_ID::CENTRAL_MODULE_ID;
-  actionPacket[2] = TYPE_PACKET::CONTROL;
-  actionPacket[3] = commandId;
-  actionPacket[4] = -1; //К сожалению, придумать адекватный способ задавать параметр команде не удалось.
-  actionPacket[5] = currNumOutPacket;
-  actionPacket[6] = -1;
-  actionPacket[7] = calcCheckSum(actionPacket, DATA_SEGMENT_LENGTH);
+  actionPacket->dest = currDisplayedModuleId;
+  actionPacket->sender = MODULE_ID::CENTRAL_MODULE_ID;
+  actionPacket->type = TYPE_PACKET::CONTROL;
+  actionPacket->id = commandId;
+  actionPacket->valueParam = -1; //К сожалению, придумать адекватный способ задавать параметр команде не удалось.
+  actionPacket->numPacket = currNumOutPacket;
+  actionPacket->ckSum = calcCheckSum(actionPacket, sizeof(ActionServicePacket));
 
   currNumOutPacket = (currNumOutPacket < MAX_PACKET_NUMBER ? currNumOutPacket + 1 : 0);
 }
