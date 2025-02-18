@@ -88,15 +88,15 @@ void analyzeIncomingPacket(ActionServicePacket* packet){
   if(packet->dest != MODULE_ID::EXTERNAL_MODULE_ID) return; //Проверка, что данный пакет предназначен текущему модулю
   if(packet->sender != MODULE_ID::CENTRAL_MODULE_ID) return; //Проверка, что данный пакет поступил от главного модуля
   if(packet->type != TYPE_PACKET::CONTROL) return; //Проверка, что данный пакет имеет тип 'управляющий'
-  if(packet->ckSum != calcCheckSum(packet, DATA_PACKET_LENGTH)) return; //Проверка на контрольную сумму пакета
+  if(packet->ckSum != calcCheckSum(packet, ACTSERV_PACKET_LENGTH)) return; //Проверка на контрольную сумму пакета
 
-  const COMMANDS_TYPE type = static_cast<COMMANDS_TYPE>(packet->type);
-  Serial.println((String)"PACKET ACTION TYPE : " + type);
-  if(type >= COMMANDS_TYPE::RESTART_ALL && type <= COMMANDS_TYPE::HEARTBEAT){
+  const COMMANDS_TYPE commandId = static_cast<COMMANDS_TYPE>(packet->id);
+  Serial.println((String)"PACKET ACTION ID : " + commandId);
+  if(commandId >= COMMANDS_TYPE::RESTART_ALL && commandId <= COMMANDS_TYPE::HEARTBEAT){
     sendReceipt();
   }
 
-  switch(type){
+  switch(commandId){
     case COMMANDS_TYPE::RESTART_ALL:
       restartAll();
     break;
@@ -148,7 +148,7 @@ void fillHeaderAndTailServicePacket(ActionServicePacket* packet){
   packet->sender = MODULE_ID::EXTERNAL_MODULE_ID;
   packet->type = TYPE_PACKET::SERVICE;
   packet->numPacket = numberPacket;
-  packet->ckSum = calcCheckSum(packet, DATA_PACKET_LENGTH);
+  packet->ckSum = calcCheckSum(packet, ACTSERV_PACKET_LENGTH);
 }
 
 void fillServicePacketSMS(ActionServicePacket* packet){
