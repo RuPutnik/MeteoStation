@@ -62,12 +62,16 @@ inline uint32_t calcCheckSum(void* data, unsigned int byteLength){
 }
 
 #pragma pack(push, 1)
-struct MeteoDataPacket
+struct HeaderPacket
 {
 	unsigned int type: 4;
 	unsigned int dest: 4;
 	unsigned int sender: 4;
 	uint32_t numPacket: 20;
+};
+
+struct MeteoDataPacket : HeaderPacket
+{
 	float val1;
 	float val2;
 	float val3;
@@ -77,22 +81,11 @@ struct MeteoDataPacket
 	uint32_t ckSum;
 };
 
-struct ActionServicePacket
+struct ActionServicePacket : HeaderPacket
 {
-	unsigned int type: 4;
-	unsigned int dest: 4;
-	unsigned int sender: 4;
-	uint32_t numPacket: 20;
-	unsigned int id: 16;
+	uint16_t id;
 	float valueParam;
 	uint32_t ckSum;
-};
-
-struct HeaderPacket
-{
-    unsigned int type: 4;
-	unsigned int dest: 4;
-	unsigned int sender: 4;
 };
 #pragma pack(pop)
 

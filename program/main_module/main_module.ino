@@ -127,7 +127,7 @@ bool processIncomingData()
 
   saveIncomingData(currIncomingPacket);
     
-  if(checkIncomingDataIntegrity()){
+  if(checkIncomingPacketIntegrity()){
     Serial.println("Packet is Correct!");
     debugSavedIncomingPacket();
     return true;
@@ -199,7 +199,7 @@ void sendActionPacket(ActionServicePacket* actionPacket)
 bool attemptSendActionPacket(ActionServicePacket* actionPacket)
 {
   radio.stopListening();
-  radio.write(actionPacket, sizeof(ActionServicePacket), true);
+  radio.write(actionPacket, ACTSERV_PACKET_LENGTH, true);
   radio.startListening();
 
   const bool wasReceivedResponse = processReceivedServicePacket(handlerCorrectServicePacket);
@@ -295,7 +295,7 @@ void saveIncomingData(void* packet)
 }
 
 //Проверяем целостность сохраненных данных, вычисляя контрольную сумму
-bool checkIncomingDataIntegrity()
+bool checkIncomingPacketIntegrity()
 {
   switch(currPacketType){
     case TYPE_PACKET::DATA:
@@ -365,7 +365,7 @@ void resetServiceBuffer(MODULE_ID moduleId)
   if(!servicePacket) 
     return;
 
-  memset(servicePacket, 0, sizeof(ActionServicePacket));
+  memset(servicePacket, 0, ACTSERV_PACKET_LENGTH);
 }
 
 void resetIncomingDataBuffers()
@@ -384,7 +384,7 @@ void fillActionPacket(COMMANDS_TYPE commandId, ActionServicePacket* actionPacket
   actionPacket->id = commandId;
   actionPacket->valueParam = -1; //К сожалению, придумать адекватный способ задавать параметр команде не удалось.
   actionPacket->numPacket = currNumOutPacket;
-  actionPacket->ckSum = calcCheckSum(actionPacket, sizeof(ActionServicePacket));
+  actionPacket->ckSum = calcCheckSum(actionPacket, ACTSERV_PACKET_LENGTH);
 
   currNumOutPacket = (currNumOutPacket < MAX_PACKET_NUMBER ? currNumOutPacket + 1 : 0);
 }

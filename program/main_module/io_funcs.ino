@@ -476,9 +476,9 @@ String formCommandMsg(COMMANDS_TYPE commandId)
     case CHANGE_SEND_INTERVAL:
       return "Change send interv";
     case GET_TIME_INTERVAL:
-      return "Get send interv";
+      return "Get send interv ms";
     case GET_LIFE_TIME:
-      return "Get lifetime";
+      return "Get lifetime ms";
     case HEARTBEAT:
       return "Ping";
     default:

@@ -97,5 +97,5 @@ MeteoDataPacket* getMeteoDataPacket(MODULE_ID moduleId)
 
 uint8_t getMaxMeteoParamIndex()
 {
-  return (currDisplayedModuleId == MODULE_ID::INTERNAL_MODULE_ID) ? COUNT_METEO_PARAM_INTERNAL : COUNT_METEO_PARAM_EXTERNAL;
+  return (currDisplayedModuleId == MODULE_ID::INTERNAL_MODULE_ID) ? COUNT_METEO_PARAM_INTERNAL - 1 : COUNT_METEO_PARAM_EXTERNAL - 1;
 }
