@@ -530,7 +530,8 @@ String formMeteoDataMsg(uint8_t indexParam)
 
 String getCurrDateTime()
 {
-  char time[9], date[11], currDateTime[18];
+  char time[9], date[11];
+  static char currDateTime[18];
 
   rtc.getTimeChar(time);
   rtc.getDateChar(date);

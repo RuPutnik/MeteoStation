@@ -1,6 +1,5 @@
 #include <microDS3231.h>
 #include <LiquidCrystal_I2C.h>
-#include <SD.h>
 
 #include <general.h>
 
