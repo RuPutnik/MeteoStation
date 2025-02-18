@@ -189,7 +189,7 @@ void buttonsHandler()
 void topRightButtonHandler()
 {
   //Данные назад / команда назад
-  Serial.println("TopRight press");
+  //Serial.println("TopRight press");
   if(currWorkMode == WORK_MODE::SHOW_METEO_DATA)
   {
     if(currMeteoParam > 0){
@@ -207,7 +207,7 @@ void topRightButtonHandler()
 void bottomRightButtonHandler()
 {
   //Данные вперед / команда вперед
-  Serial.println("BottomRight press");
+  //Serial.println("BottomRight press");
   if(currWorkMode == WORK_MODE::SHOW_METEO_DATA)
   {
     if(currMeteoParam < getMaxMeteoParamIndex()){
@@ -239,7 +239,7 @@ void centerButtonHandler()
 void topLeftButtonHandler()
 {
   //Войти-выйти в режим управления
-  Serial.println("TopLeft press");
+  //Serial.println("TopLeft press");
   if(currWorkMode == WORK_MODE::SHOW_METEO_DATA){
     currWorkMode = WORK_MODE::SHOW_COMMANDS;
   }else{
@@ -253,7 +253,7 @@ void topLeftButtonHandler()
 void bottomLeftButtonHandler()
 {
   //Формат отображения значений / Отправить команду
-  Serial.println("BottomLeft press");
+  //Serial.println("BottomLeft press");
   if(currWorkMode == WORK_MODE::SHOW_METEO_DATA)
   {
     if(currShowDataMode == SHOW_DATA_MODE::CLASSIC)
@@ -530,8 +530,7 @@ String formMeteoDataMsg(uint8_t indexParam)
 
 String getCurrDateTime()
 {
-  char time[9], date[11];
-  static char currDateTime[18];
+  char time[9], date[11], currDateTime[18];
 
   rtc.getTimeChar(time);
   rtc.getDateChar(date);

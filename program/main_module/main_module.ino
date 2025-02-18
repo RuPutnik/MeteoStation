@@ -1,5 +1,7 @@
 #include <microDS3231.h>
 #include <LiquidCrystal_I2C.h>
+#include <SD.h>
+
 #include <general.h>
 
 #define KEY_POSTHANDLE_DELAY_MSEC    1000
@@ -121,7 +123,7 @@ bool processIncomingData()
   const bool validIncomingData = analyzeIncomingPacket(currIncomingPacket);
 
   if(!validIncomingData){
-    Serial.println("DATA IS INVALID!");
+    //Serial.println("DATA IS INVALID!");
     return false;
   }
 
@@ -129,10 +131,10 @@ bool processIncomingData()
     
   if(checkIncomingPacketIntegrity()){
     Serial.println("Packet is Correct!");
-    debugSavedIncomingPacket();
+    //debugSavedIncomingPacket();
     return true;
   }else{
-    Serial.println("!!Packet is Corrupted!!");
+    //Serial.println("!!Packet is Corrupted!!");
     resetCurrIncomingPacket(); //Пакет поврежден - очищаем буфер, в который он был записан
     return false;
   }
@@ -222,7 +224,6 @@ bool attemptSendActionPacket(ActionServicePacket* actionPacket)
 
 bool handlerCorrectServicePacket(ActionServicePacket* servicePacket)
 {
-  debugServicePacket(servicePacket);
   const SERVICE_MSG_TYPE msgType = static_cast<SERVICE_MSG_TYPE>(servicePacket->id);
   if(msgType == SERVICE_MSG_TYPE::GET_ERROR_COMMAND){    
     printDisplayModuleServiceMsg(msgType, servicePacket->valueParam);
