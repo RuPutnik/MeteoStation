@@ -1,6 +1,6 @@
 #include <microDS3231.h>
 #include <LiquidCrystal_I2C.h>
-//#include <SD.h>
+#include <SD.h>
 
 #include <general.h>
 
@@ -96,6 +96,7 @@ void startRadio()
   radio.setPALevel(RF24_PA_HIGH);
   radio.enableDynamicAck(); //Разрешаем выборочное отключение подтверждения передачи данных
   radio.enableDynamicPayloads();
+  radio.openWritingPipe(PIPE_WRITE_ADDRESS);
   radio.openReadingPipe(1, PIPE_READ_ADDRESS_EXTERNAL);
   radio.openReadingPipe(2, PIPE_READ_ADDRESS_INTERNAL);
   radio.startListening();
@@ -132,7 +133,7 @@ bool processIncomingData()
     
   if(checkIncomingPacketIntegrity()){
     Serial.println(F("Packet is Correct!"));
-    debugSavedIncomingPacket();
+    //debugSavedIncomingPacket();
     return true;
   }else{
     Serial.println(F("!!Packet is Corrupted!!"));
@@ -202,7 +203,6 @@ void sendActionPacket(ActionServicePacket* actionPacket)
 bool attemptSendActionPacket(ActionServicePacket* actionPacket)
 {
   radio.stopListening();
-  debugActionPacket(actionPacket);
   radio.write(actionPacket, ACTSERV_PACKET_LENGTH, true);
   radio.startListening();
 

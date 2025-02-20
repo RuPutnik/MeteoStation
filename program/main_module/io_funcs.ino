@@ -113,7 +113,7 @@ void printDisplayModuleServiceMsg(SERVICE_MSG_TYPE typeServicePacket, float valu
   resetDisplay();
   updateDisplayHeader();
 
-  char printBuffer[20];
+  char printBuffer[21];
 
   lcd.setCursor(0, 2);
   switch(typeServicePacket)
