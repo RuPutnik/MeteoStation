@@ -13,13 +13,13 @@ void startDisplay()
   lcd.init();
   lcd.backlight(); //Включаем подсветку LCD дисплея
   lcd.setCursor(0, 0);
-  lcd.print("--------------------");
+  lcd.print(F("--------------------"));
   lcd.setCursor(4, 1);
-  lcd.print("MeteoStation");
+  lcd.print(F("MeteoStation"));
   lcd.setCursor(3, 2);
-  lcd.print("Starting up...");
+  lcd.print(F("Starting up..."));
   lcd.setCursor(0, 3);
-  lcd.print("--------------------");
+  lcd.print(F("--------------------"));
 }
 
 void resetDisplay()
@@ -64,7 +64,7 @@ void updateDisplayContentMeteodata()
 {
   if(!isCompleteDataPacket(currDisplayedModuleId)){
     lcd.setCursor(6, 2);
-    lcd.print("No data");
+    lcd.print(F("No data"));
     return;
   }
 
@@ -104,7 +104,7 @@ void printDisplayFailDeliveryCommand()
   updateDisplayHeader();
 
   lcd.setCursor(3, 2);
-  lcd.print("Command failed");
+  lcd.print(F("Command failed"));
   delay(PRINT_SERVICE_MSG_MSEC);
 }
 
@@ -189,7 +189,7 @@ void buttonsHandler()
 void topRightButtonHandler()
 {
   //Данные назад / команда назад
-  //Serial.println("TopRight press");
+  Serial.println(F("TopRight press"));
   if(currWorkMode == WORK_MODE::SHOW_METEO_DATA)
   {
     if(currMeteoParam > 0){
@@ -207,7 +207,7 @@ void topRightButtonHandler()
 void bottomRightButtonHandler()
 {
   //Данные вперед / команда вперед
-  //Serial.println("BottomRight press");
+  Serial.println(F("BottomRight press"));
   if(currWorkMode == WORK_MODE::SHOW_METEO_DATA)
   {
     if(currMeteoParam < getMaxMeteoParamIndex()){
@@ -225,7 +225,7 @@ void bottomRightButtonHandler()
 void centerButtonHandler()
 {
   //Смена модуля
-  Serial.println("Center press");
+  Serial.println(F("Center press"));
   if(currDisplayedModuleId == MODULE_ID::INTERNAL_MODULE_ID){
     currDisplayedModuleId = MODULE_ID::EXTERNAL_MODULE_ID;
   }else{
@@ -239,7 +239,7 @@ void centerButtonHandler()
 void topLeftButtonHandler()
 {
   //Войти-выйти в режим управления
-  //Serial.println("TopLeft press");
+  Serial.println(F("TopLeft press"));
   if(currWorkMode == WORK_MODE::SHOW_METEO_DATA){
     currWorkMode = WORK_MODE::SHOW_COMMANDS;
   }else{
@@ -253,7 +253,7 @@ void topLeftButtonHandler()
 void bottomLeftButtonHandler()
 {
   //Формат отображения значений / Отправить команду
-  //Serial.println("BottomLeft press");
+  Serial.println(F("BottomLeft press"));
   if(currWorkMode == WORK_MODE::SHOW_METEO_DATA)
   {
     if(currShowDataMode == SHOW_DATA_MODE::CLASSIC)
@@ -289,7 +289,7 @@ String formTemperatureMsg()
   }
   else
   {
-    return "T = <?>";
+    return F("T = <?>");
   }
 
   if(currShowDataMode == SHOW_DATA_MODE::CLASSIC)
@@ -315,18 +315,18 @@ String formPressureMsg()
     if(currShowDataMode == SHOW_DATA_MODE::CLASSIC)
     {
       pressureValue = pressureValue / 133.3;
-      scaleName = " mmHg";
+      scaleName = F(" mmHg");
     }
     else
     {
-      scaleName = " Pa";
+      scaleName = F(" Pa");
     }
 
     return "Press = " + static_cast<String>(pressureValue) + scaleName;
   }
   else
   {
-    return "Press = <?>";
+    return F("Press = <?>");
   }
 }
 
@@ -345,7 +345,7 @@ String formHumidityMsg()
   }
   else
   {
-    return "Relat wet = <?>";
+    return F("Relat wet = <?>");
   }
 
   return "Relat wet = " + static_cast<String>(humidityValue) + "%";
@@ -365,14 +365,14 @@ String formSolarMsg()
     }
     else
     {
-      scaleName = " Abs.";
+      scaleName = F(" Abs.");
     }
 
     return "Light = " + static_cast<String>(solarValue) + scaleName;
   }
   else
   {
-    return "Light = <?>";
+    return F("Light = <?>");
   }
 }
 
@@ -386,18 +386,18 @@ String formUVMsg()
     if(currShowDataMode == SHOW_DATA_MODE::CLASSIC)
     {
       uvValue = uvValue / 20.5;
-      scaleName = " Unit"; //В результате данных преобразований получаем индекс УФ излучения в диапазоне 0..10
+      scaleName = F(" Unit"); //В результате данных преобразований получаем индекс УФ излучения в диапазоне 0..10
     }
     else
     {
-      scaleName = " Abs.";
+      scaleName = F(" Abs.");
     }
 
     return "UV = " + static_cast<String>(uvValue) + scaleName;
   }
   else
   {
-    return "UV = <?>";
+    return F("UV = <?>");
   }
 }
 
@@ -415,14 +415,14 @@ String formRainMsg()
     }
     else
     {
-      scaleName = " Abs.";
+      scaleName = F(" Abs.");
     }
 
     return "Rain = " + static_cast<String>(rainValue) + scaleName;
   }
   else
   {
-    return "Rain = <?>";
+    return F("Rain = <?>");
   }
 }
 
@@ -440,14 +440,14 @@ String formMicrophoneMsg()
     }
     else
     {
-      scaleName = " Abs.";
+      scaleName = F(" Abs.");
     }
 
     return "Sound = " + static_cast<String>(microphoneValue) + scaleName;
   }
   else
   {
-    return "Sound = <?>";
+    return F("Sound = <?>");
   }
 }
 
@@ -458,11 +458,11 @@ String formMQ135Msg()
   {
     float carbonDioxideValue = internalDataPacket.val3;
 
-    return "CO2 = " + static_cast<String>(carbonDioxideValue) + " ppm";
+    return "CO2 = " + static_cast<String>(carbonDioxideValue) + F(" ppm");
   }
   else
   {
-    return "CO2 = <?>";
+    return F("CO2 = <?>");
   }
 }
 
@@ -470,19 +470,19 @@ String formCommandMsg(COMMANDS_TYPE commandId)
 {
   switch(commandId){
     case RESTART_ALL:
-      return "Restart module";
+      return F("Restart module");
     case STOP_START_SEND:
-      return "Stop/start send";
+      return F("Stop/start send");
     case CHANGE_SEND_INTERVAL:
-      return "Change send interv";
+      return F("Change send interv");
     case GET_TIME_INTERVAL:
-      return "Get send interv ms";
+      return F("Get send interv ms");
     case GET_LIFE_TIME:
-      return "Get lifetime ms";
+      return F("Get lifetime ms");
     case HEARTBEAT:
-      return "Ping";
+      return F("Ping");
     default:
-      return "Command <?>";  
+      return F("Command <?>");  
   }
 }
 

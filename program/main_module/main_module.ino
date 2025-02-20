@@ -1,5 +1,6 @@
 #include <microDS3231.h>
 #include <LiquidCrystal_I2C.h>
+//#include <SD.h>
 
 #include <general.h>
 
@@ -20,6 +21,7 @@
 
 #define RADIO_CE_PIN                 8
 #define RADIO_CSN_PIN                9
+#define SD_CARD_CSN_PIN              10
 
 enum WORK_MODE: uint8_t
 {
@@ -116,24 +118,24 @@ void loop()
 
 bool processIncomingData()
 {
-  Serial.println("Data Incoming!");
+  Serial.println(F("Data Incoming!"));
   radio.read(currIncomingPacket, DATA_PACKET_LENGTH);
 
   const bool validIncomingData = analyzeIncomingPacket(currIncomingPacket);
 
   if(!validIncomingData){
-    //Serial.println("DATA IS INVALID!");
+    Serial.println(F("DATA IS INVALID!"));
     return false;
   }
 
   saveIncomingData(currIncomingPacket);
     
   if(checkIncomingPacketIntegrity()){
-    Serial.println("Packet is Correct!");
-    //debugSavedIncomingPacket();
+    Serial.println(F("Packet is Correct!"));
+    debugSavedIncomingPacket();
     return true;
   }else{
-    //Serial.println("!!Packet is Corrupted!!");
+    Serial.println(F("!!Packet is Corrupted!!"));
     resetCurrIncomingPacket(); //Пакет поврежден - очищаем буфер, в который он был записан
     return false;
   }
@@ -200,6 +202,7 @@ void sendActionPacket(ActionServicePacket* actionPacket)
 bool attemptSendActionPacket(ActionServicePacket* actionPacket)
 {
   radio.stopListening();
+  debugActionPacket(actionPacket);
   radio.write(actionPacket, ACTSERV_PACKET_LENGTH, true);
   radio.startListening();
 

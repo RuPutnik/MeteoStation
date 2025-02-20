@@ -3,9 +3,9 @@
 void debugSavedIncomingPacket()
 {
   if(currPacketModuleId == INTERNAL_MODULE_ID){
-    Serial.println("=== INTERNAL PACKET ===");    
+    Serial.println(F("=== INTERNAL PACKET ==="));    
   }else if(currPacketModuleId == EXTERNAL_MODULE_ID){
-    Serial.println("=== EXTERNAL PACKET ===");
+    Serial.println(F("=== EXTERNAL PACKET ==="));
   }
 
   if(currPacketType == TYPE_PACKET::DATA){
