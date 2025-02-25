@@ -13,7 +13,6 @@
 #define PIPE_READ_ADDRESS_INTERNAL   0xF0F0F0F0E3LL
 #define LCD2004_ADDRESS              0x3F
 
-#define COUNT_SEGMENTS_IN_PACKET     3
 #define COUNT_METEO_PARAM_EXTERNAL   6
 #define COUNT_METEO_PARAM_INTERNAL   4
 #define COUNT_ATTEMPT_SEND_ACTION    3
@@ -22,6 +21,8 @@
 #define RADIO_CE_PIN                 8
 #define RADIO_CSN_PIN                9
 #define SD_CARD_CSN_PIN              10
+
+#define LOG_FILENAME                 F("TMD.log")
 
 enum WORK_MODE: uint8_t
 {
@@ -69,7 +70,8 @@ WORK_MODE currWorkMode  = WORK_MODE::SHOW_METEO_DATA;
 SHOW_DATA_MODE currShowDataMode = SHOW_DATA_MODE::CLASSIC;
 COMMANDS_TYPE currCommand = COMMANDS_TYPE::STOP_START_SEND;
 uint8_t currMeteoParam;
-float currNumOutPacket;
+uint32_t currNumOutPacket;
+bool sdCardInitialized;
 
 void setup()
 {
@@ -78,11 +80,14 @@ void setup()
   //rtc.setTime(31, 32, 21, 25, 1, 2025);
   currNumOutPacket = 0;
   currMeteoParam = 1;
+  sdCardInitialized = false;
 
   currIncomingPacket = malloc(DATA_PACKET_LENGTH);
   
   startRadio();
+  startSdCard();
   initializeButtons();
+  sendInfoToCard(MODULE_ID::CENTRAL_MODULE_ID, F("Central module started successfully"));
 
   delay(SETUP_DELAY);
   updateDisplay();
@@ -90,6 +95,7 @@ void setup()
 
 void startRadio()
 {
+  activateRadio();
   radio.begin();
   radio.setChannel(RADIO_CHANNEL_NUMBER);
   radio.setDataRate(RF24_1MBPS);
@@ -132,7 +138,7 @@ bool processIncomingData()
   saveIncomingData(currIncomingPacket);
     
   if(checkIncomingPacketIntegrity()){
-    Serial.println(F("Packet is Correct!"));
+    Serial.println(F("Packet is Correct!"));    
     //debugSavedIncomingPacket();
     return true;
   }else{
@@ -148,7 +154,7 @@ void displayIncomingData()
     case TYPE_PACKET::DATA:
       if(currWorkMode == WORK_MODE::SHOW_METEO_DATA && 
          isCompleteDataPacket(currDisplayedModuleId)){
-        updateDisplay();  
+        updateDisplay();
       }
     break;
     case TYPE_PACKET::SERVICE:
@@ -205,6 +211,8 @@ bool attemptSendActionPacket(ActionServicePacket* actionPacket)
   radio.stopListening();
   radio.write(actionPacket, ACTSERV_PACKET_LENGTH, true);
   radio.startListening();
+
+  sendInfoToCard(MODULE_ID::INCORRECT_MODULE_ID, createActionServiceStr(actionPacket));
 
   const bool wasReceivedResponse = processReceivedServicePacket(handlerCorrectServicePacket);
   if(!wasReceivedResponse){
@@ -276,20 +284,22 @@ bool analyzeIncomingPacket(void* packet)
   return true;
 }
 
-//Сохраняем данные в нужный буфер в зависимости от результатов проведенного ранее анализа
+//Сохраняем данные в нужный буфер и на карту в зависимости от результатов проведенного ранее анализа
 void saveIncomingData(void* packet)
 {
   resetCurrIncomingPacket(); //очищаем старые данные
 
   switch(currPacketType){
     case TYPE_PACKET::DATA:{
-      MeteoDataPacket* dataPacket = getMeteoDataPacket(currPacketModuleId);
+      MeteoDataPacket* dataPacket = getMeteoDataPacket(currPacketModuleId);  
       memmove(dataPacket, packet, DATA_PACKET_LENGTH);
+      sendDataToCard(currPacketModuleId, createMeteodataStr(dataPacket));
       break;
     }
     case TYPE_PACKET::SERVICE:{
       ActionServicePacket* servicePacket = getServicePacket(currPacketModuleId);
       memmove(servicePacket, packet, ACTSERV_PACKET_LENGTH);
+      sendInfoToCard(MODULE_ID::INCORRECT_MODULE_ID, createActionServiceStr(servicePacket));
       break;
     }
     default:
