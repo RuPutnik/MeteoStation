@@ -38,10 +38,10 @@ void updateDisplayHeader()
 {
    lcd.setCursor(0, 0);
    if(currDisplayedModuleId == MODULE_ID::EXTERNAL_MODULE_ID){
-     lcd.print("M2");
+     lcd.print(F("M2"));
    }
    else if(currDisplayedModuleId == MODULE_ID::INTERNAL_MODULE_ID){
-     lcd.print("M1");
+     lcd.print(F("M1"));
    }
    
    lcd.setCursor(3, 0);
@@ -85,7 +85,7 @@ void updateDisplayContentMeteodata()
 void updateDisplayContentCommands()
 {
   lcd.setCursor(0, 2);
-  lcd.print(String{"> "} + formCommandMsg(currCommand));
+  lcd.print(String{F("> ")} + formCommandMsg(currCommand));
 
   if(currCommand > COMMANDS_TYPE::RESTART_ALL){
     lcd.setCursor(2, 1);
@@ -113,32 +113,39 @@ void printDisplayModuleServiceMsg(SERVICE_MSG_TYPE typeServicePacket, float valu
   resetDisplay();
   updateDisplayHeader();
 
-  char printBuffer[21];
+  String printBuffer;
 
   lcd.setCursor(0, 2);
   switch(typeServicePacket)
   {
     case SERVICE_MSG_TYPE::START_MODULE_SUCCESS:
-      sprintf(printBuffer, "Module %d started", static_cast<int>(valueParam));
+      printBuffer = F("Module ");
+      printBuffer = printBuffer + String{static_cast<int>(valueParam)};
+      printBuffer = printBuffer + F(" started");
       break;
     case SERVICE_MSG_TYPE::SUCCESS_GET_COMMAND:
       lcd.setCursor(2, 2);
-      strcpy(printBuffer, "Command executed");
+      printBuffer = F("Command executed");
       break;
     case SERVICE_MSG_TYPE::ERROR_START_DETECTOR:
-      sprintf(printBuffer, "Error start %d sensor", static_cast<int>(valueParam));
+      printBuffer = F("Error start ");
+      printBuffer = printBuffer + String{static_cast<int>(valueParam)};
+      printBuffer = printBuffer + F(" sensor");
       break;
     case SERVICE_MSG_TYPE::REPORT_TIME_INTERVAL:
-      sprintf(printBuffer, "Send interval: %ld", static_cast<long int>(valueParam));
+      printBuffer = F("Send interval: ");
+      printBuffer = printBuffer + String{static_cast<long int>(valueParam)};
       break;
     case SERVICE_MSG_TYPE::REPORT_LIFE_TIME:
-      sprintf(printBuffer, "Lifetime: %lu", static_cast<unsigned long int>(valueParam));
+      printBuffer = F("Lifetime: ");
+      printBuffer = printBuffer + String{static_cast<unsigned long int>(valueParam)};
       break;
     case SERVICE_MSG_TYPE::GET_ERROR_COMMAND:
-      sprintf(printBuffer, "Invalid command: %d", static_cast<int>(valueParam));
+      printBuffer = F("Invalid command: ");
+      printBuffer = printBuffer + String{static_cast<int>(valueParam)};
       break;
     default:
-      strcpy(printBuffer, "Unknown msg type");
+      printBuffer = F("Unknown msg type");
       break;
   }
   lcd.print(printBuffer);
@@ -294,15 +301,17 @@ String formTemperatureMsg()
 
   if(currShowDataMode == SHOW_DATA_MODE::CLASSIC)
   {
-    scaleName = "C";
+    scaleName = F("C");
   }
   else
   {
     temperatureValue = temperatureValue * 1.8 + 32; //Перевод из цельсия в фаренгейты
-    scaleName = "F";
+    scaleName = F("F");
   }
 
-  return "T = " + static_cast<String>(temperatureValue) + scaleName;
+  const String resultStr = F("T = ");
+
+  return resultStr + static_cast<String>(temperatureValue) + scaleName;
 } 
 
 String formPressureMsg()
@@ -322,7 +331,9 @@ String formPressureMsg()
       scaleName = F(" Pa");
     }
 
-    return "Press = " + static_cast<String>(pressureValue) + scaleName;
+    const String str = F("Press = ");
+
+    return str + String(pressureValue) + scaleName;
   }
   else
   {
@@ -348,7 +359,9 @@ String formHumidityMsg()
     return F("Relat wet = <?>");
   }
 
-  return "Relat wet = " + static_cast<String>(humidityValue) + "%";
+  String str = F("Relat wet = ");
+
+  return str + String(humidityValue) + "%";
 }
 
 String formSolarMsg()
@@ -368,7 +381,9 @@ String formSolarMsg()
       scaleName = F(" Abs.");
     }
 
-    return "Light = " + static_cast<String>(solarValue) + scaleName;
+    const String resultStr = F("Light = ");
+
+    return resultStr + String(solarValue) + scaleName;
   }
   else
   {
@@ -393,7 +408,9 @@ String formUVMsg()
       scaleName = F(" Abs.");
     }
 
-    return "UV = " + static_cast<String>(uvValue) + scaleName;
+    const String resultStr = F("UV = ");
+
+    return resultStr + String(uvValue) + scaleName;
   }
   else
   {
@@ -418,7 +435,9 @@ String formRainMsg()
       scaleName = F(" Abs.");
     }
 
-    return "Rain = " + static_cast<String>(rainValue) + scaleName;
+    const String resultStr = F("Rain = ");
+
+    return resultStr + static_cast<String>(rainValue) + scaleName;
   }
   else
   {
@@ -443,7 +462,9 @@ String formMicrophoneMsg()
       scaleName = F(" Abs.");
     }
 
-    return "Sound = " + static_cast<String>(microphoneValue) + scaleName;
+    const String resultStr = F("Sound = ");
+
+    return resultStr + static_cast<String>(microphoneValue) + scaleName;
   }
   else
   {
@@ -458,7 +479,9 @@ String formMQ135Msg()
   {
     float carbonDioxideValue = internalDataPacket.val3;
 
-    return "CO2 = " + static_cast<String>(carbonDioxideValue) + F(" ppm");
+    const String resultStr = F("CO2 = ");
+
+    return resultStr + static_cast<String>(carbonDioxideValue) + F(" ppm");
   }
   else
   {
