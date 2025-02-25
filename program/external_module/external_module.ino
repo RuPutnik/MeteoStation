@@ -24,7 +24,7 @@ unsigned long sendDataIntervalsMsec[COUNT_SEND_DATA_INTERVALS]{1000, 5000, 10000
 MeteoDataPacket dataPacket;
 ActionServicePacket servicePacket;
 ActionServicePacket actionPacket;
-float numberPacket;
+uint32_t numberPacket;
 unsigned long prevTime;
 bool sendTmData;
 
