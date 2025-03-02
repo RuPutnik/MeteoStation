@@ -18,7 +18,7 @@ void setup()
 
   startSdCard();
   printListFiles();
-  printMeteodata();
+  //printMeteodata();
 }
 
 void loop()
@@ -55,7 +55,8 @@ void printListFiles()
   Serial.println("----------------");
 
   root.openRoot(volume);
-  root.ls(LS_R);
+  
+  root.ls(LS_R | LS_DATE | LS_SIZE);
 }
 
 bool startSdCard()
