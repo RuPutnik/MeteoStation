@@ -22,7 +22,7 @@
 #define RADIO_CSN_PIN                9
 #define SD_CARD_CSN_PIN              10
 
-#define LOG_FILENAME                 F("TMD.log")
+#define LOG_FILENAME                 F("TMD2.log")
 
 enum WORK_MODE: uint8_t
 {

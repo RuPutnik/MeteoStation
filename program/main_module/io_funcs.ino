@@ -427,7 +427,7 @@ String formRainMsg()
 
     if(currShowDataMode == SHOW_DATA_MODE::CLASSIC)
     {
-      rainValue = normalize(rainValue) * 100;
+      rainValue = 100 - (normalize(rainValue) * 100);
       scaleName = "%";
     }
     else
