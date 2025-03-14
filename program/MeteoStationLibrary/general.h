@@ -8,7 +8,7 @@
 #define SETUP_DELAY                2000
 
 #define SERIAL_SPEED               9600
-#define RADIO_CHANNEL_NUMBER       8
+#define RADIO_CHANNEL_NUMBER       110
 #define DATA_PACKET_LENGTH		   sizeof(MeteoDataPacket)
 #define ACTSERV_PACKET_LENGTH	   sizeof(ActionServicePacket)
 #define MAX_PACKET_NUMBER		   1000000

@@ -139,7 +139,7 @@ bool processIncomingData()
     
   if(checkIncomingPacketIntegrity()){
     Serial.println(F("Packet is Correct!"));    
-    //debugSavedIncomingPacket();
+    debugSavedIncomingPacket();
     return true;
   }else{
     Serial.println(F("!!Packet is Corrupted!!"));

@@ -71,12 +71,12 @@ void updateDisplayContentMeteodata()
   lcd.setCursor(0, 2);
   lcd.print(formMeteoDataMsg(currMeteoParam));
 
-  if(currCommand > 0){
+  if(currMeteoParam > 0){
     lcd.setCursor(0, 1);
     lcd.print(formMeteoDataMsg(currMeteoParam - 1));
   }
 
-  if(currCommand < getMaxMeteoParamIndex()){
+  if(currMeteoParam < getMaxMeteoParamIndex()){
     lcd.setCursor(0, 3);
     lcd.print(formMeteoDataMsg(currMeteoParam + 1));
   }
