@@ -12,8 +12,29 @@ float getHumidityValue(){
   return humidityEvent.relative_humidity;
 }
 
-float getMicrophoneValue(){
+int16_t getCurrMicrophoneValue(){
   return analogRead(MICROPHONE_PORT);
+}
+
+float getRealMicrophoneValue()
+{
+  int16_t currSignal;
+  int16_t currSignalMax = 0;
+  int16_t currSignalMin = 1024;
+
+  for(int16_t i = 0; i < 500; i++){ //примерно 50 мс
+    currSignal = getCurrMicrophoneValue();
+    
+    if(currSignal < 1024){
+      if(currSignal > currSignalMax){
+        currSignalMax = currSignal;
+      }else if(currSignal < currSignalMin){
+        currSignalMin = currSignal;
+      }
+    }
+  }
+
+  return currSignalMax - currSignalMin;
 }
 
 float getMQ135Value(){

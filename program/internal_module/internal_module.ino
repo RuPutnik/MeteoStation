@@ -17,6 +17,7 @@
 Adafruit_AHT10 ahtDetector;
 RF24 radio(RADIO_CE_PORT, RADIO_CSN_PORT);
 MQ135 mq135_sensor(MQ135_PORT);
+float microphoneValue;
 
 int currSendDataIntervalIndex;
 unsigned long sendDataIntervalsMsec[COUNT_SEND_DATA_INTERVALS]{1000, 5000, 10000, 60000}; //Возможные интервалы отправки данных
@@ -33,6 +34,7 @@ void setup() {
   pinMode(LED_PORT, OUTPUT);
   numberPacket = 0;
   prevTime = 0;
+  microphoneValue = 0;
   currSendDataIntervalIndex = 2; //По умолчанию используем интервал 10сек (10 000 мсек)
   sendTmData = true;
 
@@ -76,6 +78,7 @@ void loop() {
   }  
   
   delay(LOOP_DELAY_MSEC); //Обязательная задержка
+  microphoneValue = getRealMicrophoneValue();
   Serial.println("=== END ITERATION ===");
 }
 
@@ -230,7 +233,7 @@ void fillDataPacket(MeteoDataPacket* dataPacket){
   dataPacket->val1 = getTemperatureValue();
   dataPacket->val2 = getHumidityValue();
   dataPacket->val3 = getMQ135Value();
-  dataPacket->val4 = getMicrophoneValue();
+  dataPacket->val4 = microphoneValue;
   dataPacket->val5 = 0;
   dataPacket->val6 = 0;
 
