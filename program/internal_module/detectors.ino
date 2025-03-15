@@ -40,6 +40,6 @@ float getRealMicrophoneValue()
 float getMQ135Value(){
   const float temperature = getTemperatureValue();
   const float humidity = getHumidityValue();
-
+  //В качестве опорных параметров датчика (получены в результате калибровки) были приняты: RZero=315.0, RLoad=1.0 в MQ135.h
   return mq135_sensor.getCorrectedPPM(temperature, humidity);
 }
