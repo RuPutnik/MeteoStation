@@ -454,8 +454,9 @@ String formMicrophoneMsg()
 
     if(currShowDataMode == SHOW_DATA_MODE::CLASSIC)
     {
-      microphoneValue = normalize(microphoneValue * 2) * 100;
-      scaleName = "%";
+      const float voltsMicro = normalize(microphoneValue * 5);
+      microphoneValue = 20 * log10(voltsMicro / 0.775); //dBells
+      scaleName = F(" DBell");
     }
     else
     {
