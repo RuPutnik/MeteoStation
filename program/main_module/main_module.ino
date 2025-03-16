@@ -153,6 +153,7 @@ void displayIncomingData()
   switch(currPacketType){
     case TYPE_PACKET::DATA:
       if(currWorkMode == WORK_MODE::SHOW_METEO_DATA && 
+         currDisplayedModuleId == currPacketModuleId &&
          isCompleteDataPacket(currDisplayedModuleId)){
         updateDisplay();
       }
