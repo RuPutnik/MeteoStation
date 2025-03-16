@@ -3,8 +3,8 @@ sensors_event_t humidityEvent, tempEvent;
 //Функции получения данных
 float getTemperatureValue(){
   ahtDetector.getEvent(&humidityEvent, &tempEvent);
-
-  return tempEvent.temperature;
+  
+  return tempEvent.temperature - TEMP_CORRECTION;
 }
 
 float getHumidityValue(){

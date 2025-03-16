@@ -5,6 +5,8 @@
 #define COUNT_DETECTOR             4
 #define COUNT_SEND_DATA_INTERVALS  4
 
+#define TEMP_CORRECTION            1.5 //Поправка в температуре из-за нагрева MQ135
+
 #define PIPE_READ_ADDRESS          0xF0F0F0F0E1LL
 #define PIPE_WRITE_ADDRESS         0xF0F0F0F0E3LL
 
